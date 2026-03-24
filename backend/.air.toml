@@ -1,0 +1,27 @@
+# Config for Air with Gin in development mode
+# https://github.com/cosmtrek/air
+
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  bin = "./tmp/main"
+  cmd = "go build -o ./tmp/main ./cmd/server"
+  delay = 1000
+  exclude_dir = ["assets", "tmp", "vendor", "migrations"]
+  exclude_regex = ["_test\\.go"]
+  exclude_unchanged = false
+  follow_symlink = false
+  kill_delay = "2s"
+  log = "build-errors.log"
+  send_interrupt = false
+  stop_on_error = true
+
+[log]
+  time = false
+
+[misc]
+  clean_on_exit = true
+
+[screen]
+  clear_on_rebuild = true

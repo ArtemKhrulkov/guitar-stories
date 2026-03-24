@@ -1,0 +1,121 @@
+const API_BASE = 'http://localhost:8080/api'
+
+export interface LinkInput {
+  guitar_id: string
+  platform: 'ozon' | 'wildberries' | 'sweetwater' | 'guitarcenter'
+  url: string
+  price_rub?: number
+  price_usd?: number
+  in_stock?: boolean
+}
+
+export interface PurchaseLink {
+  id: string
+  guitar_id: string
+  platform: string
+  url: string
+  price_rub?: number
+  price_usd?: number
+  in_stock: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface Guitar {
+  id: string
+  brand_id: string
+  model: string
+  guitar_type: string
+  price_range?: string
+  image_url?: string
+  specifications?: {
+    body_wood?: string
+    neck_wood?: string
+    fretboard?: string
+    pickup_config?: string
+    frets?: number
+    scale_length?: string
+    hardware?: string
+    bridge?: string
+    tuners?: string
+  }
+  brand?: {
+    id: string
+    name: string
+  }
+}
+
+export interface GuitarUpdate {
+  model?: string
+  image_url?: string
+  guitar_type?: 'electric' | 'acoustic' | 'bass'
+  specifications?: Record<string, any>
+}
+
+interface AdminLinksState {
+  guitars: Ref<Guitar[]>
+  isLoading: Ref<boolean>
+  searchGuitars(query: string): Promise<void>
+  addLink(input: LinkInput): Promise<PurchaseLink>
+  deleteLink(linkId: string): Promise<void>
+  updateGuitar(id: string, data: GuitarUpdate): Promise<Guitar>
+}
+
+export const useAdminLinks = (): AdminLinksState => {
+  const guitars = useState<Guitar[]>('admin-guitars', () => [])
+  const isLoading = useState<boolean>('admin-links-loading', () => false)
+
+  const searchGuitars = async (query: string): Promise<void> => {
+    if (!query || query.length < 2) {
+      guitars.value = []
+      return
+    }
+    isLoading.value = true
+    try {
+      const response = await $fetch<{ guitars: Guitar[] }>(`${API_BASE}/guitars?search=${encodeURIComponent(query)}&limit=20`, {
+        credentials: 'include'
+      })
+      guitars.value = response.guitars
+    } catch (error) {
+      console.error('Failed to search guitars:', error)
+      guitars.value = []
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const addLink = async (input: LinkInput): Promise<PurchaseLink> => {
+    const response = await $fetch<{ link: PurchaseLink }>(`${API_BASE}/admin/links`, {
+      method: 'POST',
+      credentials: 'include',
+      body: input
+    })
+    return response.link
+  }
+
+  const deleteLink = async (linkId: string): Promise<void> => {
+    await $fetch(`${API_BASE}/admin/links`, {
+      method: 'DELETE',
+      credentials: 'include',
+      body: { link_id: linkId }
+    })
+  }
+
+  const updateGuitar = async (id: string, data: GuitarUpdate): Promise<Guitar> => {
+    const response = await $fetch<{ guitar: Guitar }>(`${API_BASE}/admin/guitars/${id}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      body: data
+    })
+    return response.guitar
+  }
+
+  return {
+    guitars,
+    isLoading,
+    searchGuitars,
+    addLink,
+    deleteLink,
+    updateGuitar
+  }
+}

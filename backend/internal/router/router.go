@@ -1,0 +1,66 @@
+package router
+
+import (
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+
+	"guitar-stock/internal/config"
+	"guitar-stock/internal/handlers"
+	"guitar-stock/internal/middleware"
+	"guitar-stock/internal/repository"
+)
+
+func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
+	r := gin.Default()
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{cfg.AllowedOrigins},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
+		AllowCredentials: true,
+	}))
+
+	brandRepo := repository.NewBrandRepository(db)
+	guitarRepo := repository.NewGuitarRepository(db)
+	playerRepo := repository.NewPlayerRepository(db)
+	purchaseLinkRepo := repository.NewPurchaseLinkRepository(db)
+
+	brandHandler := handlers.NewBrandHandler(brandRepo)
+	guitarHandler := handlers.NewGuitarHandler(guitarRepo)
+	playerHandler := handlers.NewPlayerHandler(playerRepo)
+	authHandler := handlers.NewAuthHandler(cfg)
+	adminHandler := handlers.NewAdminHandler(purchaseLinkRepo, guitarRepo)
+
+	api := r.Group("/api")
+	{
+		api.GET("/brands", brandHandler.GetAll)
+		api.GET("/brands/:id", brandHandler.GetByID)
+
+		api.GET("/guitars", guitarHandler.GetAll)
+		api.GET("/guitars/:id", guitarHandler.GetByID)
+
+		api.GET("/players", playerHandler.GetAll)
+		api.GET("/players/:id", playerHandler.GetByID)
+
+		api.GET("/auth/check", authHandler.Check)
+		api.POST("/auth/login", authHandler.Login)
+		api.POST("/auth/logout", authHandler.Logout)
+
+		admin := api.Group("/admin")
+		admin.Use(middleware.BasicAuth(cfg))
+		{
+			admin.POST("/scrape/:guitar_id", func(c *gin.Context) {
+				c.JSON(503, gin.H{"error": "Scraper is currently disabled. Please add purchase links manually via POST /api/admin/links"})
+			})
+			admin.POST("/scrape/all", func(c *gin.Context) {
+				c.JSON(503, gin.H{"error": "Scraper is currently disabled. Please add purchase links manually"})
+			})
+			admin.POST("/links", adminHandler.AddLink)
+			admin.DELETE("/links", adminHandler.DeleteLink)
+			admin.PATCH("/guitars/:id", guitarHandler.Update)
+		}
+	}
+
+	return r
+}
