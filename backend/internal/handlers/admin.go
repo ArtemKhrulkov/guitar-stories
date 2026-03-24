@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -29,6 +30,20 @@ type AddLinkRequest struct {
 	PriceRUB *float64        `json:"price_rub"`
 	PriceUSD *float64        `json:"price_usd"`
 	InStock  *bool           `json:"in_stock"`
+}
+
+func (h *AdminHandler) GetLinks(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "0"))
+
+	links, total, err := h.purchaseLinkRepo.FindAll(limit)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"links": links,
+		"total": total,
+	})
 }
 
 func (h *AdminHandler) AddLink(c *gin.Context) {

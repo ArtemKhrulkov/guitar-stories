@@ -111,7 +111,7 @@ const totalGuitars = ref(0);
 const fetchStats = async () => {
     try {
         const guitarsRes = await $fetch<{ guitars: any[]; total: number }>(
-            `${baseURL}/guitars?limit=1`,
+            `${API_BASE}/guitars?limit=1`,
             {
                 credentials: "include",
             },
@@ -122,11 +122,25 @@ const fetchStats = async () => {
     }
 };
 
+const fetchLinks = async () => {
+    try {
+        const linksRes = await $fetch<{ links: any[]; total: number }>(
+            `${API_BASE}/admin/links?limit=1`,
+            {
+                credentials: "include",
+            },
+        );
+        totalLinks.value = linksRes.total;
+    } catch (e) {
+        console.error("Failed to fetch stats", e);
+    }
+};
+
 const handleLogout = async () => {
     await logout();
 };
 
 onMounted(() => {
-    fetchStats();
+    Promise.all([fetchStats(), fetchLinks()]);
 });
 </script>

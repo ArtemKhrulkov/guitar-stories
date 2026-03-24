@@ -11,6 +11,10 @@
                     </v-btn>
                     <h1 class="text-xl font-bold text-white">Browse Guitars</h1>
                 </div>
+                <v-btn color="primary" @click="showCreateDialog">
+                    <IconifyIcon icon="mdi:plus" class="mr-2" />
+                    Create Guitar
+                </v-btn>
             </div>
         </header>
 
@@ -168,6 +172,97 @@
             </div>
         </main>
 
+        <!-- Create Guitar Dialog -->
+        <v-dialog v-model="createDialog.show" max-width="600">
+            <v-card>
+                <v-card-title>Create New Guitar</v-card-title>
+                <v-card-text>
+                    <v-form ref="createForm">
+                        <v-select
+                            v-model="createDialog.data.brand_id"
+                            :items="brands"
+                            item-title="name"
+                            item-value="id"
+                            label="Brand"
+                            variant="outlined"
+                            class="mb-4"
+                        />
+
+                        <v-text-field
+                            v-model="createDialog.data.model"
+                            label="Model"
+                            variant="outlined"
+                            class="mb-4"
+                        />
+
+                        <v-select
+                            v-model="createDialog.data.guitar_type"
+                            :items="guitarTypes"
+                            item-title="label"
+                            item-value="value"
+                            label="Guitar Type"
+                            variant="outlined"
+                            class="mb-4"
+                        />
+
+                        <v-text-field
+                            v-model="createDialog.data.price_range"
+                            label="Price Range"
+                            variant="outlined"
+                            placeholder="e.g., 2000 - 3000 USD / 200000 - 300000 RUB"
+                            class="mb-4"
+                        />
+
+                        <v-text-field
+                            v-model="createDialog.data.image_url"
+                            label="Image URL"
+                            variant="outlined"
+                            class="mb-4"
+                            @update:model-value="updateCreateImagePreview"
+                        />
+
+                        <v-img
+                            v-if="createDialog.data.image_url"
+                            :src="createDialog.data.image_url"
+                            height="150"
+                            cover
+                            class="bg-gray-700 rounded mb-4"
+                        />
+
+                        <v-textarea
+                            v-model="createDialog.data.history"
+                            label="History / Description"
+                            variant="outlined"
+                            rows="3"
+                            class="mb-4"
+                        />
+
+                        <v-label class="mb-2">Specifications (JSON)</v-label>
+                        <v-textarea
+                            v-model="createDialog.data.specifications"
+                            label="Specifications"
+                            variant="outlined"
+                            rows="6"
+                            placeholder='{"body_wood": "Mahogany", "neck_wood": "Maple"}'
+                            hint="Enter as JSON object"
+                            persistent-hint
+                        />
+                    </v-form>
+                </v-card-text>
+                <v-card-actions>
+                    <v-spacer />
+                    <v-btn @click="createDialog.show = false">Cancel</v-btn>
+                    <v-btn
+                        color="primary"
+                        :loading="createDialog.loading"
+                        @click="handleCreateGuitar"
+                    >
+                        Create
+                    </v-btn>
+                </v-card-actions>
+            </v-card>
+        </v-dialog>
+
         <!-- Edit Guitar Dialog -->
         <v-dialog v-model="editDialog.show" max-width="600">
             <v-card>
@@ -186,7 +281,6 @@
                             label="Image URL"
                             variant="outlined"
                             class="mb-4"
-                            @update:model-value="updateImagePreview"
                         />
 
                         <v-img
@@ -204,6 +298,22 @@
                             item-value="value"
                             label="Guitar Type"
                             variant="outlined"
+                            class="mb-4"
+                        />
+
+                        <v-text-field
+                            v-model="editDialog.data.price_range"
+                            label="Price Range"
+                            variant="outlined"
+                            placeholder="e.g., 2000 - 3000 USD / 200000 - 300000 RUB"
+                            class="mb-4"
+                        />
+
+                        <v-textarea
+                            v-model="editDialog.data.history"
+                            label="History / Description"
+                            variant="outlined"
+                            rows="3"
                             class="mb-4"
                         />
 
@@ -305,6 +415,8 @@ import type {
     PurchaseLink,
     LinkInput,
     GuitarUpdate,
+    GuitarCreate,
+    Brand,
 } from "~/composables/useAdminLinks";
 
 definePageMeta({
@@ -315,7 +427,8 @@ definePageMeta({
 const config = useRuntimeConfig();
 const API_BASE = config.public.apiUrl;
 
-const { addLink, deleteLink, updateGuitar } = useAdminLinks();
+const { addLink, deleteLink, updateGuitar, createGuitar, getBrands } =
+    useAdminLinks();
 
 const search = ref("");
 const page = ref(1);
@@ -325,6 +438,7 @@ const guitars = ref<Guitar[]>([]);
 const totalPages = ref(1);
 const expandedId = ref<string | null>(null);
 const guitarLinks = ref<Record<string, PurchaseLink[]>>({});
+const brands = ref<Brand[]>([]);
 
 const platforms = [
     { label: "Ozon", value: "ozon" },
@@ -339,6 +453,32 @@ const guitarTypes = [
     { label: "Bass", value: "bass" },
 ];
 
+const createDialog = ref<{
+    show: boolean;
+    loading: boolean;
+    data: {
+        brand_id: string;
+        model: string;
+        guitar_type: string;
+        price_range: string;
+        image_url: string;
+        history: string;
+        specifications: string;
+    };
+}>({
+    show: false,
+    loading: false,
+    data: {
+        brand_id: "",
+        model: "",
+        guitar_type: "electric",
+        price_range: "",
+        image_url: "",
+        history: "",
+        specifications: "{}",
+    },
+});
+
 const editDialog = ref<{
     show: boolean;
     guitar: Guitar | null;
@@ -347,6 +487,8 @@ const editDialog = ref<{
         model: string;
         image_url: string;
         guitar_type: string;
+        price_range: string;
+        history: string;
         specifications: string;
     };
 }>({
@@ -357,6 +499,8 @@ const editDialog = ref<{
         model: "",
         image_url: "",
         guitar_type: "electric",
+        price_range: "",
+        history: "",
         specifications: "{}",
     },
 });
@@ -420,6 +564,14 @@ const fetchGuitars = async () => {
     }
 };
 
+const fetchBrands = async () => {
+    try {
+        brands.value = await getBrands();
+    } catch (e) {
+        console.error("Failed to fetch brands", e);
+    }
+};
+
 const toggleExpanded = async (guitarId: string) => {
     if (expandedId.value === guitarId) {
         expandedId.value = null;
@@ -441,6 +593,76 @@ const toggleExpanded = async (guitarId: string) => {
     }
 };
 
+const showCreateDialog = () => {
+    createDialog.value = {
+        show: true,
+        loading: false,
+        data: {
+            brand_id: brands.value.length > 0 ? brands.value[0].id : "",
+            model: "",
+            guitar_type: "electric",
+            price_range: "",
+            image_url: "",
+            history: "",
+            specifications: "{}",
+        },
+    };
+};
+
+const updateCreateImagePreview = () => {};
+
+const handleCreateGuitar = async () => {
+    createDialog.value.loading = true;
+    try {
+        let specs: Record<string, any> | undefined;
+        if (createDialog.value.data.specifications) {
+            try {
+                specs = JSON.parse(createDialog.value.data.specifications);
+            } catch {
+                snackbar.value = {
+                    show: true,
+                    message: "Invalid JSON in specifications",
+                    color: "error",
+                };
+                createDialog.value.loading = false;
+                return;
+            }
+        }
+
+        const data: GuitarCreate = {
+            brand_id: createDialog.value.data.brand_id,
+            model: createDialog.value.data.model,
+            guitar_type: createDialog.value.data.guitar_type as
+                | "electric"
+                | "acoustic"
+                | "bass",
+            price_range: createDialog.value.data.price_range || undefined,
+            image_url: createDialog.value.data.image_url || undefined,
+            history: createDialog.value.data.history || undefined,
+            specifications: specs,
+        };
+
+        await createGuitar(data);
+
+        snackbar.value = {
+            show: true,
+            message: "Guitar created successfully",
+            color: "success",
+        };
+
+        createDialog.value.show = false;
+        fetchGuitars();
+    } catch (e: any) {
+        snackbar.value = {
+            show: true,
+            message: e.data?.error || "Failed to create guitar",
+            color: "error",
+        };
+    } finally {
+        createDialog.value.loading = false;
+    }
+};
+
 const showEditDialog = (guitar: Guitar) => {
     let specsStr = "{}";
     if (guitar.specifications) {
@@ -455,12 +677,12 @@ const showEditDialog = (guitar: Guitar) => {
             model: guitar.model,
             image_url: guitar.image_url || "",
             guitar_type: guitar.guitar_type,
+            price_range: guitar.price_range || "",
+            history: guitar.history || "",
             specifications: specsStr,
         },
     };
 };
-
-const updateImagePreview = () => {};
 
 const handleUpdateGuitar = async () => {
     if (!editDialog.value.guitar) return;
@@ -500,6 +722,18 @@ const handleUpdateGuitar = async () => {
                 | "electric"
                 | "acoustic"
                 | "bass";
+        }
+        if (
+            editDialog.value.data.price_range !==
+            (editDialog.value.guitar?.price_range || "")
+        ) {
+            updateData.price_range = editDialog.value.data.price_range;
+        }
+        if (
+            editDialog.value.data.history !==
+            (editDialog.value.guitar?.history || "")
+        ) {
+            updateData.history = editDialog.value.data.history;
         }
         if (specs) {
             updateData.specifications = specs;
@@ -611,5 +845,6 @@ const truncateUrl = (url: string) => {
 
 onMounted(() => {
     fetchGuitars();
+    fetchBrands();
 });
 </script>

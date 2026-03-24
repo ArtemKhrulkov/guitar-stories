@@ -15,6 +15,21 @@ type PurchaseLinkRepository struct {
 	db *gorm.DB
 }
 
+func (r *PurchaseLinkRepository) FindAll(limit int) ([]models.PurchaseLink, int64, error) {
+	var links []models.PurchaseLink
+	var total int64
+
+	r.db.Model(&models.PurchaseLink{}).Count(&total)
+
+	if limit > 0 {
+		r.db.Limit(limit).Find(&links)
+	} else {
+		r.db.Find(&links)
+	}
+
+	return links, total, nil
+}
+
 func NewPurchaseLinkRepository(db *gorm.DB) *PurchaseLinkRepository {
 	return &PurchaseLinkRepository{db: db}
 }

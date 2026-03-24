@@ -56,8 +56,10 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 			admin.POST("/scrape/all", func(c *gin.Context) {
 				c.JSON(503, gin.H{"error": "Scraper is currently disabled. Please add purchase links manually"})
 			})
+			admin.GET("/links", adminHandler.GetLinks)
 			admin.POST("/links", adminHandler.AddLink)
 			admin.DELETE("/links", adminHandler.DeleteLink)
+			admin.POST("/guitars", guitarHandler.Create)
 			admin.PATCH("/guitars/:id", guitarHandler.Update)
 		}
 	}

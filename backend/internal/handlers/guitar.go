@@ -83,6 +83,18 @@ type UpdateGuitarRequest struct {
 	Model          *string                 `json:"model"`
 	ImageURL       *string                 `json:"image_url"`
 	GuitarType     *string                 `json:"guitar_type"`
+	PriceRange     *string                 `json:"price_range"`
+	History        *string                 `json:"history"`
+	Specifications *map[string]interface{} `json:"specifications"`
+}
+
+type CreateGuitarRequest struct {
+	BrandID        string                  `json:"brand_id" binding:"required"`
+	Model          string                  `json:"model" binding:"required"`
+	GuitarType     string                  `json:"guitar_type" binding:"required"`
+	PriceRange     *string                 `json:"price_range"`
+	ImageURL       *string                 `json:"image_url"`
+	History        *string                 `json:"history"`
 	Specifications *map[string]interface{} `json:"specifications"`
 }
 
@@ -128,6 +140,14 @@ func (h *GuitarHandler) Update(c *gin.Context) {
 		guitar.GuitarType = gt
 	}
 
+	if req.PriceRange != nil {
+		guitar.PriceRange = *req.PriceRange
+	}
+
+	if req.History != nil {
+		guitar.History = req.History
+	}
+
 	if req.Specifications != nil {
 		specJSON, err := json.Marshal(req.Specifications)
 		if err != nil {
@@ -154,4 +174,74 @@ func (h *GuitarHandler) Update(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"guitar": updatedGuitar})
+}
+
+func (h *GuitarHandler) Create(c *gin.Context) {
+	var req CreateGuitarRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	brandID, err := uuid.Parse(req.BrandID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid brand_id format"})
+		return
+	}
+
+	validTypes := map[string]bool{
+		"electric": true,
+		"acoustic": true,
+		"bass":     true,
+	}
+	if !validTypes[req.GuitarType] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid guitar_type. Must be one of: electric, acoustic, bass"})
+		return
+	}
+
+	guitar := &models.Guitar{
+		ID:         uuid.New(),
+		BrandID:    brandID,
+		Model:      req.Model,
+		GuitarType: models.GuitarType(req.GuitarType),
+	}
+
+	if req.PriceRange != nil {
+		guitar.PriceRange = *req.PriceRange
+	}
+
+	if req.ImageURL != nil {
+		guitar.ImageURL = req.ImageURL
+	}
+
+	if req.History != nil {
+		guitar.History = req.History
+	}
+
+	if req.Specifications != nil {
+		specJSON, err := json.Marshal(req.Specifications)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid specifications format"})
+			return
+		}
+		var specs models.Specifications
+		if err := json.Unmarshal(specJSON, &specs); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid specifications format"})
+			return
+		}
+		guitar.Specifications = &specs
+	}
+
+	if err := h.repo.Create(guitar); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create guitar: " + err.Error()})
+		return
+	}
+
+	createdGuitar, err := h.repo.FindByID(guitar.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch created guitar"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"guitar": createdGuitar})
 }
