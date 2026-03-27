@@ -3,16 +3,22 @@ package scraper
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
+	"time"
 
-	"github.com/gocolly/colly"
-	"github.com/gocolly/colly/proxy"
+	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/launcher"
+	"github.com/go-rod/rod/lib/launcher/flags"
+	"github.com/go-rod/stealth"
 	"github.com/sirupsen/logrus"
 )
 
 type WildberriesScraper struct {
 	logger  *logrus.Logger
 	proxies []string
+	debug   bool
 }
 
 func NewWildberriesScraper() *WildberriesScraper {
@@ -35,6 +41,23 @@ func NewWildberriesScraperWithProxies(proxies []string) *WildberriesScraper {
 	}
 }
 
+func NewWildberriesScraperWithDebug() *WildberriesScraper {
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.TextFormatter{FullTimestamp: true})
+	logger.SetLevel(logrus.DebugLevel)
+
+	return &WildberriesScraper{
+		logger:  logger,
+		proxies: []string{},
+		debug:   true,
+	}
+}
+
+func (s *WildberriesScraper) WithProxies(proxies []string) *WildberriesScraper {
+	s.proxies = proxies
+	return s
+}
+
 func (s *WildberriesScraper) Search(ctx context.Context, brand, model string) ([]SearchResult, error) {
 	var results []SearchResult
 	query := fmt.Sprintf("%s %s гитара", brand, model)
@@ -42,74 +65,292 @@ func (s *WildberriesScraper) Search(ctx context.Context, brand, model string) ([
 
 	s.logger.Infof("[WB] Searching: %s", searchURL)
 
-	c := colly.NewCollector(
-		colly.AllowedDomains("wildberries.ru", "www.wildberries.ru"),
-		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"),
-		colly.MaxDepth(2),
-	)
+	browserPath := "/usr/bin/chromium"
+	l := launcher.New().
+		Bin(browserPath).
+		NoSandbox(true).
+		Set("disable-gpu").
+		Set("disable-dev-shm-usage").
+		Set("disable-setuid-sandbox").
+		Set("no-first-run").
+		Set("no-zygote").
+		Set("single-process", "false").
+		Set("disable-blink-features", "AutomationControlled").
+		Set("exclude-switches", "enable-automation").
+		Set("disable-infobars")
 
+	var proxyHost, proxyUser, proxyPass string
 	if len(s.proxies) > 0 {
-		rp, err := proxy.RoundRobinProxySwitcher(s.proxies...)
-		if err == nil {
-			c.SetProxyFunc(rp)
-			s.logger.Infof("[WB] Using %d proxies", len(s.proxies))
+		proxyURL := s.proxies[0]
+		s.logger.Infof("[WB] Using proxy: %s", maskProxy(proxyURL))
+
+		proxyHost, proxyUser, proxyPass = parseProxyURL(proxyURL)
+		if proxyHost != "" {
+			l = l.Set(flags.ProxyServer, proxyHost)
 		}
 	}
 
-	c.OnRequest(func(r *colly.Request) {
-		r.Headers.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
-		r.Headers.Set("Accept-Language", "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7")
-		r.Headers.Set("Accept-Encoding", "gzip, deflate, br")
-		r.Headers.Set("Connection", "keep-alive")
-		r.Headers.Set("Upgrade-Insecure-Requests", "1")
-		r.Headers.Set("Sec-Fetch-Dest", "document")
-		r.Headers.Set("Sec-Fetch-Mode", "navigate")
-		r.Headers.Set("Sec-Fetch-Site", "none")
-		r.Headers.Set("Sec-Fetch-User", "?1")
-		r.Headers.Set("Cache-Control", "max-age=0")
-	})
-
-	c.OnHTML("a[href*='/catalog/']", func(e *colly.HTMLElement) {
-		href := e.Attr("href")
-		if href == "" {
-			return
-		}
-
-		if !strings.HasPrefix(href, "http") {
-			href = "https://www.wildberries.ru" + href
-		}
-
-		title := strings.TrimSpace(e.Text)
-		if title == "" {
-			title = e.Attr("data-link-name")
-		}
-
-		result := SearchResult{
-			URL:     href,
-			Title:   title,
-			InStock: true,
-		}
-
-		s.logger.Printf("[WB] Found: %s - %s", title, href)
-		results = append(results, result)
-	})
-
-	c.OnError(func(r *colly.Response, err error) {
-		s.logger.Printf("[WB] Colly error (status %d): %v", r.StatusCode, err)
-	})
-
-	err := c.Visit(searchURL)
+	url, err := l.Launch()
 	if err != nil {
-		s.logger.Printf("[WB] Visit error: %v", err)
+		s.logger.Errorf("[WB] Failed to launch browser: %v", err)
+		return results, err
+	}
+
+	browser := rod.New().ControlURL(url)
+	if err := browser.Connect(); err != nil {
+		s.logger.Errorf("[WB] Failed to connect to browser: %v", err)
+		return results, err
+	}
+	defer browser.Close()
+
+	browser.MustIgnoreCertErrors(true)
+
+	if proxyUser != "" && proxyPass != "" {
+		go func() {
+			browser.HandleAuth(proxyUser, proxyPass)()
+		}()
+		s.logger.Infof("[WB] Proxy auth handler started for user: %s", proxyUser)
+	}
+
+	page := stealth.MustPage(browser)
+
+	page.MustNavigate("https://httpbin.org/ip")
+	page.MustWaitLoad()
+	s.logger.Infof("[WB] Proxy auth verified")
+
+	s.logger.Infof("[WB] Going to main page first...")
+	page.Timeout(60 * time.Second).MustNavigate("https://www.wildberries.ru")
+	time.Sleep(5 * time.Second)
+
+	s.logger.Infof("[WB] Navigating to search...")
+	page.MustNavigate(searchURL)
+	page = page.Timeout(300 * time.Second)
+
+	s.logger.Infof("[WB] Waiting for page to load...")
+	time.Sleep(10 * time.Second)
+
+	page.MustWaitLoad()
+
+	s.logger.Infof("[WB] Waiting for search results to render...")
+	time.Sleep(15 * time.Second)
+
+	elements, err := page.Elements("article.product-card")
+	if err != nil || len(elements) == 0 {
+		s.logger.Warnf("[WB] Trying alternative selectors...")
+		time.Sleep(2 * time.Second)
+		elements, err = page.Elements(".j-card-item")
+		if err != nil || len(elements) == 0 {
+			elements, err = page.Elements("a[href*='/detail.aspx']")
+		}
+	}
+
+	if err != nil {
+		s.logger.Errorf("[WB] Failed to find elements: %v", err)
 		return results, nil
 	}
 
-	c.Wait()
+	s.logger.Infof("[WB] Found %d elements", len(elements))
+
+	seen := make(map[string]bool)
+	for i, el := range elements {
+		var hrefVal *string
+		var titleVal string
+
+		linkEl, err := el.Element("a[href*='/detail.aspx']")
+		if err == nil && linkEl != nil {
+			hrefVal, _ = linkEl.Attribute("href")
+			titleVal, _ = linkEl.Text()
+			if titleVal == "" {
+				if ariaLabel, _ := linkEl.Attribute("aria-label"); ariaLabel != nil {
+					titleVal = *ariaLabel
+				}
+			}
+		} else {
+			hrefVal, _ = el.Attribute("href")
+			titleVal, _ = el.Text()
+		}
+
+		if hrefVal == nil {
+			continue
+		}
+
+		url := *hrefVal
+		if strings.HasPrefix(url, "//") {
+			url = "https://" + url[2:]
+		} else if strings.HasPrefix(url, "/") {
+			url = "https://www.wildberries.ru" + url
+		}
+
+		if seen[url] {
+			continue
+		}
+
+		seen[url] = true
+
+		if titleVal == "" {
+			ariaLabel, _ := el.Attribute("aria-label")
+			if ariaLabel != nil {
+				titleVal = *ariaLabel
+			}
+		}
+
+		if titleVal == "" {
+			continue
+		}
+
+		price := extractWildberriesPrice(el)
+
+		result := SearchResult{
+			URL:     url,
+			Title:   strings.TrimSpace(titleVal),
+			InStock: price > 0,
+		}
+
+		if price > 0 {
+			result.PriceRUB = &price
+		}
+
+		s.logger.Debugf("[WB] Found: %s - %s - Price: %v RUB", titleVal, url, price)
+		results = append(results, result)
+
+		if i >= 9 {
+			break
+		}
+	}
 
 	if len(results) > 10 {
 		results = results[:10]
 	}
 
-	s.logger.Printf("[WB] Found %d results", len(results))
+	s.logger.Infof("[WB] Found %d results", len(results))
 	return results, nil
+}
+
+func parseProxyURL(proxyURL string) (host, username, password string) {
+	proxyURL = strings.TrimPrefix(proxyURL, "http://")
+	proxyURL = strings.TrimPrefix(proxyURL, "https://")
+
+	if strings.Contains(proxyURL, "@") {
+		parts := strings.Split(proxyURL, "@")
+		if len(parts) == 2 {
+			authParts := strings.Split(parts[0], ":")
+			if len(authParts) == 2 {
+				username = authParts[0]
+				password = authParts[1]
+			}
+			host = parts[1]
+		}
+	} else {
+		host = proxyURL
+	}
+
+	return host, username, password
+}
+
+func extractPrice(text string) float64 {
+	priceRegex := regexp.MustCompile(`(\d[\d\s]*)\s*₽`)
+	matches := priceRegex.FindStringSubmatch(text)
+	if len(matches) >= 2 {
+		priceStr := strings.ReplaceAll(matches[1], " ", "")
+		price, err := strconv.ParseFloat(priceStr, 64)
+		if err == nil && price >= 100 && price <= 10000000 {
+			return price
+		}
+	}
+
+	priceRegex2 := regexp.MustCompile(`(\d[\d\s]*)\s*руб`)
+	matches2 := priceRegex2.FindStringSubmatch(text)
+	if len(matches2) >= 2 {
+		priceStr := strings.ReplaceAll(matches2[1], " ", "")
+		price, err := strconv.ParseFloat(priceStr, 64)
+		if err == nil && price >= 100 && price <= 10000000 {
+			return price
+		}
+	}
+
+	altRegex := regexp.MustCompile(`(\d{3,5}[\d\s]*)`)
+	matches3 := altRegex.FindStringSubmatch(text)
+	if len(matches3) >= 2 {
+		priceStr := strings.ReplaceAll(matches3[1], " ", "")
+		price, err := strconv.ParseFloat(priceStr, 64)
+		if err == nil && price >= 1000 && price <= 1000000 {
+			return price
+		}
+	}
+
+	return 0
+}
+
+func extractPriceFromCard(text string) float64 {
+	if text == "" {
+		return 0
+	}
+
+	patterns := []string{
+		`(\d[\d\s]*)\s*₽`,
+		`(\d{3,}[\d\s]*)`,
+		`(\d[\d\s]*)\s*руб`,
+	}
+
+	var maxPrice float64
+
+	for _, pattern := range patterns {
+		re := regexp.MustCompile(pattern)
+		matches := re.FindAllStringSubmatch(text, -1)
+		for _, match := range matches {
+			if len(match) < 2 {
+				continue
+			}
+			priceStr := strings.ReplaceAll(match[1], " ", "")
+			price, err := strconv.ParseFloat(priceStr, 64)
+			if err == nil && price > maxPrice {
+				maxPrice = price
+			}
+		}
+	}
+
+	if maxPrice < 100 {
+		return 0
+	}
+
+	return maxPrice
+}
+
+func extractWildberriesPrice(el *rod.Element) float64 {
+	jsCode := `
+		function() {
+			var text = this.innerText || this.textContent || '';
+			var priceMatch = text.match(/(\d[\d\s]*)\s*₽/);
+			if (priceMatch) {
+				var price = priceMatch[1].replace(/\s/g, '');
+				if (parseInt(price) > 1000) return price;
+			}
+			
+			var els = this.querySelectorAll('*');
+			var maxPrice = 0;
+			for (var i = 0; i < els.length; i++) {
+				var el = els[i];
+				var elText = el.innerText || el.textContent || '';
+				var m = elText.match(/^(\d[\d\s]*)\s*₽$/);
+				if (m) {
+					var p = parseInt(m[1].replace(/\s/g, ''));
+					if (p > maxPrice && p > 1000) {
+						maxPrice = p;
+					}
+				}
+			}
+			return maxPrice > 0 ? maxPrice : '';
+		}
+	`
+
+	result := el.MustEval(jsCode)
+	priceStr := result.Str()
+	if priceStr != "" {
+		price, err := strconv.ParseFloat(priceStr, 64)
+		if err == nil && price > 0 {
+			return price
+		}
+	}
+
+	return 0
 }

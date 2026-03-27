@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -40,8 +42,11 @@ func (h *ScraperHandler) ScrapeGuitar(c *gin.Context) {
 }
 
 func (h *ScraperHandler) ScrapeAll(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), 24*time.Hour)
+	defer cancel()
+
 	go func() {
-		h.service.ScrapeAll(c.Request.Context())
+		h.service.ScrapeAll(ctx)
 	}()
 
 	c.JSON(http.StatusOK, gin.H{

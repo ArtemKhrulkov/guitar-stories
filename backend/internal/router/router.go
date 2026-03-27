@@ -12,7 +12,7 @@ import (
 	"guitar-stock/internal/scraper"
 )
 
-func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
+func Setup(db *gorm.DB, cfg *config.Config, scraperService *scraper.Service) *gin.Engine {
 	r := gin.Default()
 
 	r.Use(cors.New(cors.Config{
@@ -26,8 +26,6 @@ func Setup(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	guitarRepo := repository.NewGuitarRepository(db)
 	playerRepo := repository.NewPlayerRepository(db)
 	purchaseLinkRepo := repository.NewPurchaseLinkRepository(db)
-
-	scraperService := scraper.NewService(db)
 
 	brandHandler := handlers.NewBrandHandler(brandRepo)
 	guitarHandler := handlers.NewGuitarHandler(guitarRepo)

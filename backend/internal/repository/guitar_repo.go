@@ -55,12 +55,52 @@ func (r *GuitarRepository) FindAll(filter GuitarFilter) ([]models.Guitar, int64,
 
 	offset := (filter.Page - 1) * filter.Limit
 	err := query.Preload("Brand").
+		Preload("PurchaseLinks").
 		Order("created_at DESC").
 		Offset(offset).
 		Limit(filter.Limit).
 		Find(&guitars).Error
 
-	return guitars, total, err
+	if err != nil {
+		return guitars, total, err
+	}
+
+	for i := range guitars {
+		calculatePricesFromLinks(&guitars[i])
+	}
+
+	return guitars, total, nil
+}
+
+func calculatePricesFromLinks(guitar *models.Guitar) {
+	if len(guitar.PurchaseLinks) == 0 {
+		return
+	}
+
+	var lowest, highest float64 = 0, 0
+	inStock := false
+
+	for _, link := range guitar.PurchaseLinks {
+		if link.InStock {
+			inStock = true
+		}
+		if link.PriceRUB != nil && *link.PriceRUB > 0 {
+			if lowest == 0 || *link.PriceRUB < lowest {
+				lowest = *link.PriceRUB
+			}
+			if *link.PriceRUB > highest {
+				highest = *link.PriceRUB
+			}
+		}
+	}
+
+	if lowest > 0 {
+		guitar.LowestPriceRUB = &lowest
+	}
+	if highest > 0 {
+		guitar.HighestPriceRUB = &highest
+	}
+	guitar.InStock = inStock
 }
 
 func (r *GuitarRepository) FindByID(id uuid.UUID) (*models.Guitar, error) {
@@ -75,6 +115,7 @@ func (r *GuitarRepository) FindByID(id uuid.UUID) (*models.Guitar, error) {
 	if err != nil {
 		return nil, err
 	}
+	calculatePricesFromLinks(&guitar)
 	return &guitar, nil
 }
 

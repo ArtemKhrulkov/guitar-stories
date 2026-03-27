@@ -30,16 +30,13 @@ func NewScraper(platform Platform) Scraper {
 func NewScraperWithProxies(platform Platform, proxies []string) Scraper {
 	switch platform {
 	case Ozon:
-		if len(proxies) > 0 {
-			return NewOzonScraperWithProxies(proxies)
-		}
-		return NewOzonScraper()
+		return NewOzonScraperManual()
 	case Wildberries:
 		if len(proxies) > 0 {
 			return NewWildberriesScraperWithProxies(proxies)
 		}
 		return NewWildberriesScraper()
 	default:
-		return NewOzonScraper()
+		return NewOzonScraperManual()
 	}
 }

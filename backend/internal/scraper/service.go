@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -21,7 +22,6 @@ type Service struct {
 	limiter          *RateLimiter
 	proxies          *ProxyPool
 	semaphore        *Semaphore
-	browserPool      *BrowserPool
 	db               *gorm.DB
 	guitarRepo       *repository.GuitarRepository
 	brandRepo        *repository.BrandRepository
@@ -39,14 +39,12 @@ func NewService(db *gorm.DB) *Service {
 	limiter := NewRateLimiter(config.RateLimit)
 	proxies := NewProxyPool(config.ProxyURLs)
 	semaphore := NewSemaphore(config.MaxConcurrent)
-	browserPool := NewBrowserPool(config.MaxConcurrent, config.UserAgents, proxies)
 
 	return &Service{
 		config:           config,
 		limiter:          limiter,
 		proxies:          proxies,
 		semaphore:        semaphore,
-		browserPool:      browserPool,
 		db:               db,
 		guitarRepo:       repository.NewGuitarRepository(db),
 		brandRepo:        repository.NewBrandRepository(db),
@@ -65,14 +63,12 @@ func NewServiceWithRepos(db *gorm.DB, guitarRepo *repository.GuitarRepository, b
 	limiter := NewRateLimiter(config.RateLimit)
 	proxies := NewProxyPool(config.ProxyURLs)
 	semaphore := NewSemaphore(config.MaxConcurrent)
-	browserPool := NewBrowserPool(config.MaxConcurrent, config.UserAgents, proxies)
 
 	return &Service{
 		config:           config,
 		limiter:          limiter,
 		proxies:          proxies,
 		semaphore:        semaphore,
-		browserPool:      browserPool,
 		db:               db,
 		guitarRepo:       guitarRepo,
 		brandRepo:        brandRepo,
@@ -193,7 +189,7 @@ func (s *Service) ScrapeAll(ctx context.Context) error {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	var wg sync.WaitGroup
-	completed := make(chan uuid.UUID, len(ids))
+	var completed int64
 
 	for _, id := range ids {
 		select {
@@ -221,14 +217,14 @@ func (s *Service) ScrapeAll(ctx context.Context) error {
 			}
 
 			s.ScrapeGuitar(ctx, guitarID)
-			completed <- guitarID
+			atomic.AddInt64(&completed, 1)
 		}(id)
 	}
 
 waitForCompletion:
 	wg.Wait()
 
-	s.logger.Infof("[SCRAPER] Completed %d/%d guitars", len(completed), len(ids))
+	s.logger.Infof("[SCRAPER] Completed %d/%d guitars", completed, len(ids))
 	s.proxies.LogStats()
 
 	return nil
@@ -252,7 +248,6 @@ func (s *Service) getDomain(platform Platform) string {
 
 func (s *Service) Close() {
 	s.logger.Info("[SCRAPER] Closing scraper service...")
-	s.browserPool.Close()
 	s.proxies.LogStats()
 	s.logger.Info("[SCRAPER] Scraper service closed")
 }

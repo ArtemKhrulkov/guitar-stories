@@ -46,19 +46,22 @@ func (s *Specifications) Scan(value interface{}) error {
 }
 
 type Guitar struct {
-	ID             uuid.UUID       `gorm:"type:uuid;primary_key" json:"id"`
-	BrandID        uuid.UUID       `gorm:"type:uuid;not null" json:"brand_id"`
-	Brand          *Brand          `gorm:"foreignKey:BrandID" json:"brand,omitempty"`
-	Model          string          `gorm:"size:255;not null" json:"model"`
-	GuitarType     GuitarType      `gorm:"type:varchar(50);not null" json:"guitar_type"`
-	PriceRange     string          `gorm:"size:100" json:"price_range"`
-	Specifications *Specifications `gorm:"type:jsonb" json:"specifications,omitempty"`
-	History        *string         `gorm:"type:text" json:"history,omitempty"`
-	ImageURL       *string         `gorm:"size:500" json:"image_url,omitempty"`
-	CreatedAt      time.Time       `json:"created_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
-	Players        []Player        `gorm:"many2many:guitar_players;" json:"players,omitempty"`
-	PurchaseLinks  []PurchaseLink  `gorm:"foreignKey:GuitarID" json:"purchase_links,omitempty"`
+	ID              uuid.UUID       `gorm:"type:uuid;primary_key" json:"id"`
+	BrandID         uuid.UUID       `gorm:"type:uuid;not null" json:"brand_id"`
+	Brand           *Brand          `gorm:"foreignKey:BrandID" json:"brand,omitempty"`
+	Model           string          `gorm:"size:255;not null" json:"model"`
+	GuitarType      GuitarType      `gorm:"type:varchar(50);not null" json:"guitar_type"`
+	PriceRange      string          `gorm:"size:100" json:"price_range"`
+	Specifications  *Specifications `gorm:"type:jsonb" json:"specifications,omitempty"`
+	History         *string         `gorm:"type:text" json:"history,omitempty"`
+	ImageURL        *string         `gorm:"size:500" json:"image_url,omitempty"`
+	CreatedAt       time.Time       `json:"created_at"`
+	UpdatedAt       time.Time       `json:"updated_at"`
+	Players         []Player        `gorm:"many2many:guitar_players;" json:"players,omitempty"`
+	PurchaseLinks   []PurchaseLink  `gorm:"foreignKey:GuitarID" json:"purchase_links,omitempty"`
+	LowestPriceRUB  *float64        `json:"lowest_price_rub,omitempty"`
+	HighestPriceRUB *float64        `json:"highest_price_rub,omitempty"`
+	InStock         bool            `json:"in_stock"`
 }
 
 func (g *Guitar) BeforeCreate(tx *gorm.DB) error {
