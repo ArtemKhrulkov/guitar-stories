@@ -190,9 +190,7 @@ useHead({
     title: "Home",
 });
 
-onMounted(async () => {
-    await Promise.all([fetchGuitars({ limit: 6 }), fetchBrands()]);
-});
+await Promise.all([fetchGuitars({ limit: 6 }), fetchBrands()]);
 </script>
 
 <style scoped>

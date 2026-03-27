@@ -163,25 +163,23 @@ useHead({
     title: "Guitars",
 });
 
-onMounted(async () => {
-    await fetchBrands();
+await fetchBrands();
 
-    // Check for query params
-    if (route.query.search) {
-        searchQuery.value = route.query.search as string;
-    }
-    if (route.query.brand) {
-        selectedBrand.value = route.query.brand as string;
-    }
-    if (route.query.type) {
-        selectedType.value = route.query.type as any;
-    }
-    if (route.query.page) {
-        currentPage.value = parseInt(route.query.page as string);
-    }
+// Check for query params
+if (route.query.search) {
+    searchQuery.value = route.query.search as string;
+}
+if (route.query.brand) {
+    selectedBrand.value = route.query.brand as string;
+}
+if (route.query.type) {
+    selectedType.value = route.query.type as any;
+}
+if (route.query.page) {
+    currentPage.value = parseInt(route.query.page as string);
+}
 
-    await applyFilters();
-});
+await applyFilters();
 
 watch(
     () => route.query,

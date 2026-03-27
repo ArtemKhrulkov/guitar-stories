@@ -262,10 +262,8 @@ useHead({
     ),
 });
 
-onMounted(async () => {
-    const id = route.params.id as string;
-    await fetchGuitarById(id);
-});
+const id = route.params.id as string;
+await fetchGuitarById(id);
 </script>
 
 <style scoped>

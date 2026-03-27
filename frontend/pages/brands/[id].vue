@@ -83,11 +83,9 @@ useHead({
   title: computed(() => brand.value ? brand.value.name : 'Brand Details'),
 })
 
-onMounted(async () => {
-  const id = route.params.id as string
-  const result = await fetchBrandById(id)
-  if (result) {
-    guitars.value = result.guitars || []
-  }
-})
+const id = route.params.id as string
+const result = await fetchBrandById(id)
+if (result) {
+  guitars.value = result.guitars || []
+}
 </script>

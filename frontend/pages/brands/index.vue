@@ -78,9 +78,7 @@ useHead({
   title: 'Brands',
 })
 
-onMounted(async () => {
-  await fetchBrands()
-})
+await fetchBrands()
 </script>
 
 <style scoped>

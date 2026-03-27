@@ -26,7 +26,7 @@ services:
       - "3000:3000"
       - "24678:24678"
     environment:
-      - NUXT_PUBLIC_API_URL=http://localhost:8080/api
+      - NUXT_PUBLIC_API_URL=http://backend:8080/api
       - NUXT_HOST=0.0.0.0
       - NUXT_PORT=3000
     volumes:

@@ -38,7 +38,7 @@ func main() {
 	scraperService := scraper.NewService(db)
 	scraperService.StartScheduler()
 
-	r := router.Setup(db, cfg)
+	r := router.Setup(db, cfg, scraperService)
 
 	port := cfg.Port
 	if port == "" {
