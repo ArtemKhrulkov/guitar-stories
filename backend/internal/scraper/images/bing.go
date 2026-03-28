@@ -26,7 +26,7 @@ func NewBingScraper() *BingScraper {
 
 	return &BingScraper{
 		logger:  logger,
-		timeout: 60 * time.Second,
+		timeout: 30 * time.Second,
 	}
 }
 
@@ -56,7 +56,7 @@ func (s *BingScraper) Search(ctx context.Context, brand, model string) (*ImageRe
 		return nil, nil
 	}
 
-	time.Sleep(5 * time.Second)
+	time.Sleep(2 * time.Second)
 	page.MustWaitLoad()
 
 	time.Sleep(3 * time.Second)

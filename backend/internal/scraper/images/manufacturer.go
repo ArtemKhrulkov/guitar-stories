@@ -29,7 +29,7 @@ func NewManufacturerScraper() *ManufacturerScraper {
 
 	return &ManufacturerScraper{
 		logger:  logger,
-		timeout: 60 * time.Second,
+		timeout: 30 * time.Second,
 	}
 }
 
@@ -52,21 +52,33 @@ func (s *ManufacturerScraper) Search(ctx context.Context, brand, model string) (
 
 	s.logger.Infof("[Manufacturer] Search URL: %s", searchURL)
 
+	if imageURL := s.tryHTTP(searchURL); imageURL != "" {
+		result := &ImageResult{
+			URL:    imageURL,
+			Source: "manufacturer:" + strings.ToLower(brand),
+			Width:  1200,
+			Height: 800,
+		}
+		if result.IsValid() && !result.IsPlaceholder() {
+			s.logger.Infof("[Manufacturer] Found image via HTTP: %s", imageURL)
+			return result, nil
+		}
+	}
+
 	browser, page, err := s.launchBrowser(ctx)
 	if err != nil {
 		s.logger.Errorf("[Manufacturer] Failed to launch browser: %v", err)
-		return nil, err
+		return nil, nil
 	}
 	defer browser.Close()
 
 	s.logger.Infof("[Manufacturer] Navigating to %s...", searchURL)
-	if err := page.Timeout(30 * time.Second).Navigate(searchURL); err != nil {
+	if err := page.Timeout(20 * time.Second).Navigate(searchURL); err != nil {
 		s.logger.Warnf("[Manufacturer] Navigation failed: %v", err)
 		return nil, nil
 	}
-	s.logger.Infof("[Manufacturer] Page loaded, waiting...")
 
-	time.Sleep(3 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	imageURL := s.extractImage(page)
 
@@ -283,6 +295,37 @@ func (s *ManufacturerScraper) isValidImageURL(url string) bool {
 		return false
 	}
 	return true
+}
+
+func (s *ManufacturerScraper) tryHTTP(urlStr string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "GET", urlStr, nil)
+	if err != nil {
+		return ""
+	}
+
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return ""
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ""
+	}
+
+	return s.extractImageFromHTML(string(body))
 }
 
 func (s *ManufacturerScraper) getHTTPImage(ctx context.Context, urlStr string) (string, error) {

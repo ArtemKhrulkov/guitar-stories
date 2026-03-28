@@ -24,6 +24,7 @@ type ImageService struct {
 	logger     *logrus.Logger
 	scrapers   []imgscrape.ImageScraper
 	semaphore  *Semaphore
+	cache      *ImageCache
 }
 
 func NewImageService(db *gorm.DB) *ImageService {
@@ -33,6 +34,7 @@ func NewImageService(db *gorm.DB) *ImageService {
 	scrapers := []imgscrape.ImageScraper{
 		imgscrape.NewSweetwaterScraper(),
 		imgscrape.NewManufacturerScraper(),
+		imgscrape.NewGuitarCenterScraper(),
 		imgscrape.NewBingScraper(),
 		imgscrape.NewGoogleScraper(),
 	}
@@ -43,6 +45,7 @@ func NewImageService(db *gorm.DB) *ImageService {
 		logger:     logger,
 		scrapers:   scrapers,
 		semaphore:  NewSemaphore(5),
+		cache:      NewImageCache(7 * 24 * time.Hour),
 	}
 }
 
@@ -63,11 +66,27 @@ func (s *ImageService) ScrapeGuitar(ctx context.Context, guitarID uuid.UUID) (*i
 
 	s.logger.Infof("[ImageService] Starting image scrape for: %s %s", brand.Name, guitar.Model)
 
+	if cachedURL, cachedSource, found := s.cache.Get(brand.Name, guitar.Model); found {
+		s.logger.Infof("[ImageService] Cache hit for %s %s: %s", brand.Name, guitar.Model, cachedSource)
+		result := &imgscrape.ImageResult{
+			URL:    cachedURL,
+			Source: cachedSource,
+			Width:  800,
+			Height: 600,
+		}
+		if err := s.updateGuitarImage(guitarID, result); err != nil {
+			s.logger.Errorf("[ImageService] Failed to update guitar image from cache: %v", err)
+		}
+		return result, nil
+	}
+
 	result := s.tryAllScrapers(ctx, brand.Name, guitar.Model)
 	if result == nil {
 		s.logger.Infof("[ImageService] No image found for %s %s", brand.Name, guitar.Model)
 		return nil, nil
 	}
+
+	s.cache.Set(brand.Name, guitar.Model, result.URL, result.Source)
 
 	if err := s.updateGuitarImage(guitarID, result); err != nil {
 		s.logger.Errorf("[ImageService] Failed to update guitar image: %v", err)
@@ -87,7 +106,7 @@ func (s *ImageService) tryAllScrapers(ctx context.Context, brand, model string) 
 		default:
 		}
 
-		searchCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+		searchCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 
 		s.logger.Infof("[ImageService] Trying scraper: %s", scraper.Name())
 		result, err := scraper.Search(searchCtx, brand, model)
