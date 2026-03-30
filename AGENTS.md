@@ -665,9 +665,10 @@ frontend/
 ├── composables/
 │   └── useComparison.ts     # Fetch guitars, compute differences
 ├── components/
-│   ├── ComparisonBar.vue    # Floating selection bar at bottom
-│   ├── ComparisonChip.vue   # Removable guitar chip
-│   └── ComparisonTable.vue  # Side-by-side comparison table
+│   └── comparison/
+│       ├── Bar.vue          # Floating selection bar at bottom
+│       ├── Chip.vue         # Removable guitar chip
+│       └── Table.vue        # Side-by-side comparison table
 ├── pages/
 │   └── compare.vue          # Main comparison page
 ```
