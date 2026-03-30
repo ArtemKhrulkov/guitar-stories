@@ -11,14 +11,13 @@ import (
 	"time"
 
 	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/stealth"
 	"github.com/sirupsen/logrus"
 )
 
 type GuitarCenterScraper struct {
-	logger  *logrus.Logger
-	timeout time.Duration
+	logger   *logrus.Logger
+	timeout  time.Duration
+	launcher *BrowserLauncher
 }
 
 func NewGuitarCenterScraper() *GuitarCenterScraper {
@@ -27,8 +26,9 @@ func NewGuitarCenterScraper() *GuitarCenterScraper {
 	logger.SetLevel(logrus.InfoLevel)
 
 	return &GuitarCenterScraper{
-		logger:  logger,
-		timeout: 30 * time.Second,
+		logger:   logger,
+		timeout:  30 * time.Second,
+		launcher: NewBrowserLauncher(),
 	}
 }
 
@@ -59,22 +59,22 @@ func (s *GuitarCenterScraper) Search(ctx context.Context, brand, model string) (
 		}
 	}
 
-	browser, page, err := s.launchBrowser(ctx)
+	instance, err := s.launcher.Launch(ctx)
 	if err != nil {
 		s.logger.Errorf("[GuitarCenter] Failed to launch browser: %v", err)
 		return nil, nil
 	}
-	defer browser.Close()
+	defer instance.Close()
 
 	s.logger.Infof("[GuitarCenter] Navigating to %s...", searchURL)
-	if err := page.Timeout(20 * time.Second).Navigate(searchURL); err != nil {
+	if err := instance.Page.Timeout(20 * time.Second).Navigate(searchURL); err != nil {
 		s.logger.Warnf("[GuitarCenter] Navigation failed: %v", err)
 		return nil, nil
 	}
 
 	time.Sleep(2 * time.Second)
 
-	imageURL := s.extractImage(page)
+	imageURL := s.extractImage(instance.Page)
 
 	if imageURL == "" {
 		s.logger.Infof("[GuitarCenter] No image found for %s %s", brand, model)
@@ -99,37 +99,6 @@ func (s *GuitarCenterScraper) Search(ctx context.Context, brand, model string) (
 func (s *GuitarCenterScraper) buildSearchURL(brand, model string) string {
 	query := url.QueryEscape(fmt.Sprintf("%s %s", brand, model))
 	return fmt.Sprintf("https://www.guitarcenter.com/search?searchTerm=%s", query)
-}
-
-func (s *GuitarCenterScraper) launchBrowser(ctx context.Context) (*rod.Browser, *rod.Page, error) {
-	browserPath := "/usr/bin/chromium"
-	l := launcher.New().
-		Bin(browserPath).
-		NoSandbox(true).
-		Set("disable-gpu").
-		Set("disable-dev-shm-usage").
-		Set("disable-setuid-sandbox").
-		Set("no-first-run").
-		Set("no-zygote").
-		Set("disable-blink-features", "AutomationControlled").
-		Set("exclude-switches", "enable-automation").
-		Set("disable-infobars").
-		Set("headless")
-
-	urlStr, err := l.Launch()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	browser := rod.New().ControlURL(urlStr)
-	if err := browser.Connect(); err != nil {
-		return nil, nil, err
-	}
-
-	browser.MustIgnoreCertErrors(true)
-	page := stealth.MustPage(browser)
-
-	return browser, page, nil
 }
 
 func (s *GuitarCenterScraper) tryHTTP(searchURL string) string {

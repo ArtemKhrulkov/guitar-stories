@@ -9,14 +9,13 @@ import (
 	"time"
 
 	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/stealth"
 	"github.com/sirupsen/logrus"
 )
 
 type GoogleScraper struct {
-	logger  *logrus.Logger
-	timeout time.Duration
+	logger   *logrus.Logger
+	timeout  time.Duration
+	launcher *BrowserLauncher
 }
 
 func NewGoogleScraper() *GoogleScraper {
@@ -25,8 +24,9 @@ func NewGoogleScraper() *GoogleScraper {
 	logger.SetLevel(logrus.InfoLevel)
 
 	return &GoogleScraper{
-		logger:  logger,
-		timeout: 30 * time.Second,
+		logger:   logger,
+		timeout:  30 * time.Second,
+		launcher: NewBrowserLauncher(),
 	}
 }
 
@@ -44,12 +44,14 @@ func (s *GoogleScraper) Search(ctx context.Context, brand, model string) (*Image
 	searchURL := s.buildSearchURL(brand, model)
 	s.logger.Debugf("[Google] Search URL: %s", searchURL)
 
-	browser, page, err := s.launchBrowser(ctx)
+	instance, err := s.launcher.Launch(ctx)
 	if err != nil {
 		s.logger.Errorf("[Google] Failed to launch browser: %v", err)
 		return nil, err
 	}
-	defer browser.Close()
+	defer instance.Close()
+
+	page := instance.Page
 
 	if err := page.Timeout(s.timeout).Navigate(searchURL); err != nil {
 		s.logger.Warnf("[Google] Navigation failed: %v", err)
@@ -86,37 +88,6 @@ func (s *GoogleScraper) Search(ctx context.Context, brand, model string) (*Image
 func (s *GoogleScraper) buildSearchURL(brand, model string) string {
 	query := url.QueryEscape(fmt.Sprintf("%s %s guitar official", brand, model))
 	return fmt.Sprintf("https://www.google.com/search?q=%s&tbm=isch", query)
-}
-
-func (s *GoogleScraper) launchBrowser(ctx context.Context) (*rod.Browser, *rod.Page, error) {
-	browserPath := "/usr/bin/chromium"
-	l := launcher.New().
-		Bin(browserPath).
-		NoSandbox(true).
-		Set("disable-gpu").
-		Set("disable-dev-shm-usage").
-		Set("disable-setuid-sandbox").
-		Set("no-first-run").
-		Set("no-zygote").
-		Set("disable-blink-features", "AutomationControlled").
-		Set("exclude-switches", "enable-automation").
-		Set("disable-infobars").
-		Set("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-
-	urlStr, err := l.Launch()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	browser := rod.New().ControlURL(urlStr)
-	if err := browser.Connect(); err != nil {
-		return nil, nil, err
-	}
-
-	browser.MustIgnoreCertErrors(true)
-	page := stealth.MustPage(browser)
-
-	return browser, page, nil
 }
 
 func (s *GoogleScraper) extractImage(page *rod.Page) string {

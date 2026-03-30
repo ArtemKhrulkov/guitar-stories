@@ -11,15 +11,13 @@ import (
 	"time"
 
 	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/stealth"
 	"github.com/sirupsen/logrus"
 )
 
 type ManufacturerScraper struct {
-	logger  *logrus.Logger
-	timeout time.Duration
-	browser *rod.Browser
+	logger   *logrus.Logger
+	timeout  time.Duration
+	launcher *BrowserLauncher
 }
 
 func NewManufacturerScraper() *ManufacturerScraper {
@@ -28,8 +26,9 @@ func NewManufacturerScraper() *ManufacturerScraper {
 	logger.SetLevel(logrus.InfoLevel)
 
 	return &ManufacturerScraper{
-		logger:  logger,
-		timeout: 30 * time.Second,
+		logger:   logger,
+		timeout:  15 * time.Second,
+		launcher: NewBrowserLauncher(),
 	}
 }
 
@@ -52,7 +51,8 @@ func (s *ManufacturerScraper) Search(ctx context.Context, brand, model string) (
 
 	s.logger.Infof("[Manufacturer] Search URL: %s", searchURL)
 
-	if imageURL := s.tryHTTP(searchURL); imageURL != "" {
+	imageURL := s.tryHTTP(searchURL)
+	if imageURL != "" {
 		result := &ImageResult{
 			URL:    imageURL,
 			Source: "manufacturer:" + strings.ToLower(brand),
@@ -65,25 +65,33 @@ func (s *ManufacturerScraper) Search(ctx context.Context, brand, model string) (
 		}
 	}
 
-	browser, page, err := s.launchBrowser(ctx)
+	if !s.launcher.HasBrowser() {
+		s.logger.Debugf("[Manufacturer] No browser available, skipping browser fallback")
+		return nil, nil
+	}
+
+	launchCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	instance, err := s.launcher.Launch(launchCtx)
 	if err != nil {
-		s.logger.Errorf("[Manufacturer] Failed to launch browser: %v", err)
+		s.logger.Debugf("[Manufacturer] Failed to launch browser: %v", err)
 		return nil, nil
 	}
-	defer browser.Close()
+	defer instance.Close()
 
-	s.logger.Infof("[Manufacturer] Navigating to %s...", searchURL)
-	if err := page.Timeout(20 * time.Second).Navigate(searchURL); err != nil {
-		s.logger.Warnf("[Manufacturer] Navigation failed: %v", err)
+	s.logger.Infof("[Manufacturer] Trying browser fallback...")
+
+	if err := instance.Page.Timeout(30 * time.Second).Navigate(searchURL); err != nil {
+		s.logger.Debugf("[Manufacturer] Browser navigation failed: %v", err)
 		return nil, nil
 	}
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(3 * time.Second)
 
-	imageURL := s.extractImage(page)
-
+	imageURL = s.extractImage(instance.Page)
 	if imageURL == "" {
-		s.logger.Infof("[Manufacturer] No image found for %s %s from %s", brand, model, searchURL)
+		s.logger.Debugf("[Manufacturer] No image found from browser for %s %s", brand, model)
 		return nil, nil
 	}
 
@@ -100,45 +108,6 @@ func (s *ManufacturerScraper) Search(ctx context.Context, brand, model string) (
 
 	s.logger.Infof("[Manufacturer] Found image: %s", imageURL)
 	return result, nil
-}
-
-func (s *ManufacturerScraper) launchBrowser(ctx context.Context) (*rod.Browser, *rod.Page, error) {
-	s.logger.Info("[Manufacturer] Launching browser...")
-
-	browserPath := "/usr/bin/chromium"
-	l := launcher.New().
-		Bin(browserPath).
-		NoSandbox(true).
-		Set("disable-gpu").
-		Set("disable-dev-shm-usage").
-		Set("disable-setuid-sandbox").
-		Set("no-first-run").
-		Set("no-zygote").
-		Set("disable-blink-features", "AutomationControlled").
-		Set("exclude-switches", "enable-automation").
-		Set("disable-infobars").
-		Set("headless").
-		Set("disable-web-security")
-
-	s.logger.Info("[Manufacturer] Browser config ready, launching...")
-
-	urlStr, err := l.Launch()
-	if err != nil {
-		s.logger.Errorf("[Manufacturer] Failed to launch: %v", err)
-		return nil, nil, err
-	}
-
-	s.logger.Info("[Manufacturer] Browser launched successfully")
-
-	browser := rod.New().ControlURL(urlStr)
-	if err := browser.Connect(); err != nil {
-		return nil, nil, err
-	}
-
-	browser.MustIgnoreCertErrors(true)
-	page := stealth.MustPage(browser)
-
-	return browser, page, nil
 }
 
 func (s *ManufacturerScraper) buildSearchURL(brand, model string) string {

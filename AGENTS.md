@@ -36,8 +36,11 @@ A web application for guitar enthusiasts to browse guitar catalogs, explore deta
 ```
 guitar-stock-app/
 ├── backend/                      # Go application
-│   ├── cmd/server/
-│   │   └── main.go            # Entry point
+│   ├── cmd/
+│   │   ├── server/           # API server entry point
+│   │   │   └── main.go
+│   │   └── scraper/          # Image scraper CLI
+│   │       └── main.go
 │   ├── internal/
 │   │   ├── config/            # Environment configuration
 │   │   │   └── config.go
@@ -61,15 +64,24 @@ guitar-stock-app/
 │   │   ├── services/         # Business logic
 │   │   │   ├── guitar_service.go
 │   │   │   └── scraper_service.go
-│   │   └── router/           # Route definitions
-│   │       └── router.go
+│   │   ├── router/           # Route definitions
+│   │   │   └── router.go
+│   │   └── scraper/          # Scraper services
+│   │       ├── images/       # Image scraper
+│   │       │   ├── browser.go
+│   │       │   ├── scraper_wrapper.go
+│   │       │   ├── wildberries.go
+│   │       │   ├── sweetwater.go
+│   │       │   ├── manufacturer.go
+│   │       │   ├── guitarcenter.go
+│   │       │   ├── bing.go
+│   │       │   └── google.go
+│   │       ├── ozon.go
+│   │       ├── wildberries.go
+│   │       └── factory.go
 │   ├── migrations/           # SQL schema
 │   │   ├── 001_init.sql
 │   │   └── 002_seed.sql
-│   ├── scraper/             # E-commerce scrapers
-│   │   ├── ozon.go
-│   │   ├── wildberries.go
-│   │   └── factory.go
 │   ├── go.mod
 │   └── go.sum
 ├── frontend/                 # Nuxt 3 application
@@ -285,7 +297,7 @@ String format with space-separated thousands:
 ### Implementation
 - Use factory pattern for platform selection
 - colly for static pages
-- chromedp for JavaScript-rendered pages
+- go-rod for JavaScript-rendered pages
 
 ### Search Query Format
 ```
@@ -307,6 +319,103 @@ Example: "Gibson Les Paul Standard guitar"
 - Retry 3 times with exponential backoff
 - Fallback to manual links if scraping fails
 - Log all failures for review
+
+---
+
+## Image Scraper CLI
+
+The image scraper runs as a **standalone CLI tool** outside of Docker for better performance.
+
+### Why Outside Docker?
+- Browser automation is slow in Docker containers (30-60s per request)
+- Native Chrome on host machine is much faster
+- Avoids Docker-specific browser configuration issues
+
+### Installation
+
+**macOS:**
+```bash
+brew install --cask google-chrome
+```
+
+**Linux (Ubuntu/Debian):**
+```bash
+apt install chromium chromium-driver
+# or
+apt install chromium-browser
+```
+
+**Linux (RHEL/Fedora):**
+```bash
+dnf install chromium
+```
+
+**Windows:**
+Download from https://www.google.com/chrome/
+
+### Usage
+
+```bash
+# Check if Chrome is installed
+go run ./backend/cmd/scraper/main.go --check
+
+# Scrape all guitars without images
+go run ./backend/cmd/scraper/main.go --all
+
+# Scrape specific guitar
+go run ./backend/cmd/scraper/main.go --guitar-id <uuid>
+
+# Higher concurrency for faster scraping
+go run ./backend/cmd/scraper/main.go --all --concurrency 4 --batch-size 5
+
+# Use with Docker database
+DATABASE_URL="postgres://postgres:postgres@localhost:5432/guitar_stock" \
+  go run ./backend/cmd/scraper/main.go --all
+```
+
+### Flags
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--all` | - | Scrape all guitars without images |
+| `--guitar-id` | - | Scrape specific guitar by UUID |
+| `--batch-size` | 3 | Number of guitars per batch |
+| `--concurrency` | 2 | Number of concurrent scrapers |
+| `--check` | - | Check Chrome installation |
+| `--v` | - | Verbose output |
+
+### Environment Variables
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | postgres://postgres:postgres@localhost:5432/guitar_stock | PostgreSQL connection string |
+| `CHROME_PATH` | auto-detect | Path to Chrome binary |
+| `PROXY_URLS` | - | Proxy URLs for scraping |
+
+### Image Sources (in priority order)
+1. **Bing Images** - Browser automation (fastest, most reliable)
+2. **Google Images** - Browser automation
+3. **Sweetwater** - HTTP requests (may return 403)
+4. **Manufacturer** - HTTP requests + browser fallback (12 brands, can be slow)
+5. **GuitarCenter** - HTTP requests + browser fallback (may return ads)
+6. **Wildberries** - Browser automation (blocked by anti-bot in some regions)
+
+**Note:** Wildberries requires proxy support and may be blocked by anti-bot protection. Bing Images is the most reliable source and is tried first.
+
+### Build Binary
+```bash
+cd backend
+go build -o bin/image-scraper ./cmd/scraper
+./bin/image-scraper --all
+```
+
+### Production Deployment
+On your production server:
+1. Install Chrome
+2. Copy the `image-scraper` binary
+3. Set up a cron job or systemd service:
+```bash
+# Cron example (daily at 3 AM)
+0 3 * * * /opt/guitar-stock/image-scraper --all >> /var/log/image-scraper.log 2>&1
+```
 
 ---
 

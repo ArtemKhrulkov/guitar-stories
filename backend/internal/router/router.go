@@ -33,8 +33,10 @@ func Setup(db *gorm.DB, cfg *config.Config, scraperService *scraper.Service) *gi
 	authHandler := handlers.NewAuthHandler(cfg)
 	adminHandler := handlers.NewAdminHandler(purchaseLinkRepo, guitarRepo)
 	scraperHandler := handlers.NewScraperHandler(scraperService)
-	imageService := scraper.NewImageService(db)
-	imageHandler := handlers.NewImageHandler(imageService)
+	// Image scraper is now a standalone CLI tool. Run with:
+	// go run ./cmd/scraper/main.go --all
+	// imageService := scraper.NewImageService(db)
+	// imageHandler := handlers.NewImageHandler(imageService)
 
 	api := r.Group("/api")
 	{
@@ -61,9 +63,10 @@ func Setup(db *gorm.DB, cfg *config.Config, scraperService *scraper.Service) *gi
 			admin.DELETE("/links", adminHandler.DeleteLink)
 			admin.POST("/guitars", guitarHandler.Create)
 			admin.PATCH("/guitars/:id", guitarHandler.Update)
-			admin.POST("/images/:guitar_id", imageHandler.ScrapeGuitar)
-			admin.POST("/images/all", imageHandler.ScrapeAll)
-			admin.GET("/images/missing", imageHandler.GetGuitarsWithoutImages)
+			// Image scraping moved to CLI:
+			// admin.POST("/images/:guitar_id", imageHandler.ScrapeGuitar)
+			// admin.POST("/images/all", imageHandler.ScrapeAll)
+			// admin.GET("/images/missing", imageHandler.GetGuitarsWithoutImages)
 		}
 	}
 

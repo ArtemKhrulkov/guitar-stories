@@ -9,14 +9,13 @@ import (
 	"time"
 
 	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/stealth"
 	"github.com/sirupsen/logrus"
 )
 
 type BingScraper struct {
-	logger  *logrus.Logger
-	timeout time.Duration
+	logger   *logrus.Logger
+	timeout  time.Duration
+	launcher *BrowserLauncher
 }
 
 func NewBingScraper() *BingScraper {
@@ -25,8 +24,9 @@ func NewBingScraper() *BingScraper {
 	logger.SetLevel(logrus.InfoLevel)
 
 	return &BingScraper{
-		logger:  logger,
-		timeout: 30 * time.Second,
+		logger:   logger,
+		timeout:  30 * time.Second,
+		launcher: NewBrowserLauncher(),
 	}
 }
 
@@ -44,12 +44,14 @@ func (s *BingScraper) Search(ctx context.Context, brand, model string) (*ImageRe
 	searchURL := s.buildSearchURL(brand, model)
 	s.logger.Debugf("[Bing] Search URL: %s", searchURL)
 
-	browser, page, err := s.launchBrowser(ctx)
+	instance, err := s.launcher.Launch(ctx)
 	if err != nil {
 		s.logger.Errorf("[Bing] Failed to launch browser: %v", err)
 		return nil, err
 	}
-	defer browser.Close()
+	defer instance.Close()
+
+	page := instance.Page
 
 	if err := page.Timeout(s.timeout).Navigate(searchURL); err != nil {
 		s.logger.Warnf("[Bing] Navigation failed: %v", err)
@@ -86,36 +88,6 @@ func (s *BingScraper) Search(ctx context.Context, brand, model string) (*ImageRe
 func (s *BingScraper) buildSearchURL(brand, model string) string {
 	query := url.QueryEscape(fmt.Sprintf("%s %s guitar", brand, model))
 	return fmt.Sprintf("https://www.bing.com/images/search?q=%s", query)
-}
-
-func (s *BingScraper) launchBrowser(ctx context.Context) (*rod.Browser, *rod.Page, error) {
-	browserPath := "/usr/bin/chromium"
-	l := launcher.New().
-		Bin(browserPath).
-		NoSandbox(true).
-		Set("disable-gpu").
-		Set("disable-dev-shm-usage").
-		Set("disable-setuid-sandbox").
-		Set("no-first-run").
-		Set("no-zygote").
-		Set("disable-blink-features", "AutomationControlled").
-		Set("exclude-switches", "enable-automation").
-		Set("disable-infobars")
-
-	urlStr, err := l.Launch()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	browser := rod.New().ControlURL(urlStr)
-	if err := browser.Connect(); err != nil {
-		return nil, nil, err
-	}
-
-	browser.MustIgnoreCertErrors(true)
-	page := stealth.MustPage(browser)
-
-	return browser, page, nil
 }
 
 func (s *BingScraper) extractImage(page *rod.Page) string {
