@@ -1,5 +1,23 @@
 <template>
-    <v-card :to="`/guitars/${guitar.id}`" class="guitar-card h-100" hover>
+    <v-card
+        :to="`/guitars/${guitar.id}`"
+        class="guitar-card h-100"
+        :class="{ 'selected-for-compare': isSelected }"
+        hover
+    >
+        <v-btn
+            icon
+            size="small"
+            variant="tonal"
+            class="compare-btn"
+            :color="isSelected ? 'primary' : 'default'"
+            @click.prevent="toggleCompare"
+        >
+            <IconifyIcon
+                :icon="isSelected ? 'mdi-check' : 'mdi-plus'"
+                size="18"
+            />
+        </v-btn>
         <NuxtImg
             v-if="guitar.image_url && !guitar.image_url.startsWith('https://via.placeholder')"
             :src="guitar.image_url"
@@ -103,10 +121,22 @@
 
 <script setup lang="ts">
 import type { Guitar } from "~/types";
+import { useComparisonStore } from "~/stores/comparison";
 
-defineProps<{
+const props = defineProps<{
     guitar: Guitar;
 }>();
+
+const comparisonStore = useComparisonStore();
+const isSelected = computed(() => comparisonStore.isSelected(props.guitar.id));
+
+const toggleCompare = () => {
+    if (isSelected.value) {
+        comparisonStore.removeGuitar(props.guitar.id);
+    } else {
+        comparisonStore.addGuitar(props.guitar);
+    }
+};
 
 const getTypeColor = (type: string) => {
     const colors: Record<string, string> = {
@@ -151,6 +181,17 @@ const getTypeColor = (type: string) => {
 .type-badge {
     position: absolute;
     top: 8px;
+    left: 8px;
+}
+
+.compare-btn {
+    position: absolute;
+    top: 8px;
     right: 8px;
+    z-index: 1;
+}
+
+.selected-for-compare {
+    border: 2px solid rgb(var(--v-theme-primary));
 }
 </style>

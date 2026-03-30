@@ -102,6 +102,7 @@ export default defineNuxtConfig({
     "/guitars/**": { isr: 3600 },
     "/brands": { isr: 3600 },
     "/brands/**": { isr: 3600 },
+    "/compare": { ssr: true },
     "/admin/**": { ssr: false },
   },
 });

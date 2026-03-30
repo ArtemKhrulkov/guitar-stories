@@ -639,5 +639,38 @@ make clean-all  # Clean production and dev
 - Price history tracking
 - Wishlist functionality
 - User reviews
-- Comparison tool
+- ~~Comparison tool~~ ✅ Implemented
 - Advanced search with filters
+
+---
+
+## Comparison Tool
+
+### Overview
+Side-by-side guitar comparison with up to 4 guitars, highlighting differences in specifications.
+
+### Features
+- Select up to 4 guitars from catalog using toggle button on cards
+- Floating bar shows selected guitars at bottom of page
+- Dedicated `/compare` page with full comparison table
+- Highlights rows where specs differ (yellow background)
+- Persists selection in localStorage
+- Sections: General, Electronics, Playability, Hardware
+
+### Files
+```
+frontend/
+├── stores/
+│   └── comparison.ts        # Pinia store, max 4 guitars, localStorage persistence
+├── composables/
+│   └── useComparison.ts     # Fetch guitars, compute differences
+├── components/
+│   ├── ComparisonBar.vue    # Floating selection bar at bottom
+│   ├── ComparisonChip.vue   # Removable guitar chip
+│   └── ComparisonTable.vue  # Side-by-side comparison table
+├── pages/
+│   └── compare.vue          # Main comparison page
+```
+
+### API
+Uses existing `/api/guitars/:id` endpoint - no backend changes needed.

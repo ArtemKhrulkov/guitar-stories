@@ -119,11 +119,13 @@
             </v-list>
         </v-navigation-drawer>
 
-        <v-main id="main-content" class="bg-background">
+        <v-main id="main-content" class="bg-background pb-16">
             <v-container fluid class="pa-0">
                 <slot />
             </v-container>
         </v-main>
+
+        <ComparisonBar />
 
         <v-footer color="primary" class="py-4" role="contentinfo">
             <v-row justify="center" no-gutters>
