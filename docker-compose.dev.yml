@@ -11,6 +11,7 @@ services:
       - DATABASE_URL=postgres://postgres:postgres@db:5432/guitar_stock
       - GIN_MODE=debug
       - PROXY_URLS=${PROXY_URLS}
+      - SCRAPER_RATE_LIMIT=60s
     depends_on:
       db:
         condition: service_healthy
