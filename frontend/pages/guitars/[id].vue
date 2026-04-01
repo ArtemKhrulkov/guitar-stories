@@ -90,7 +90,7 @@
               <v-window v-model="activeTab" class="tab-content">
                 <v-window-item value="specs">
                   <v-card variant="outlined" class="specs-card">
-                    <v-list density="compact" aria-label="Guitar specifications">
+                    <v-list class="bg-black" density="compact" aria-label="Guitar specifications">
                       <v-list-item
                         v-for="(value, key) in guitar.specifications"
                         :key="key"

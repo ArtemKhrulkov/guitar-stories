@@ -192,10 +192,13 @@ guitar-stock-app/
 ### Guitars
 - `GET /api/guitars` - List guitars with filters
   - Query params: 
-    - `brand` (UUID): Filter by brand
+    - `brand` (UUID[]): Filter by brands (supports multiple, e.g., `?brand=id1&brand=id2`)
     - `type` (string): electric|acoustic|bass
-    - `min_price` (string): Price range min (searches within range)
-    - `max_price` (string): Price range max
+    - `min_price` (float): Price range min (RUB)
+    - `max_price` (float): Price range max (RUB)
+    - `in_stock` (bool): Filter by availability
+    - `sort` (string): newest|model (default: newest)
+    - `dir` (string): asc|desc (default: desc)
     - `search` (string): Full-text search in model/history
     - `page` (int): Pagination (default: 1)
     - `limit` (int): Items per page (default: 12)
@@ -634,13 +637,24 @@ make clean-all  # Clean production and dev
 ---
 
 ## Future Enhancements
-- User authentication
+
+### Priority: High
+- ~~Advanced search with filters~~ ✅ Implemented
 - Admin panel for CRUD operations
+
+### Priority: Medium
+- SEO optimization (sitemap, structured data, meta tags)
 - Price history tracking
 - Wishlist functionality
+
+### Priority: Low
+- User authentication
 - User reviews
+- Performance optimization (lazy loading, caching)
+
+### Completed
 - ~~Comparison tool~~ ✅ Implemented
-- Advanced search with filters
+- Dark/light theme toggle (basic dark theme active)
 
 ---
 

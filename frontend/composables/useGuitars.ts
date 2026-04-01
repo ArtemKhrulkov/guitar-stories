@@ -23,9 +23,16 @@ export const useGuitars = () => {
     try {
       const queryParams = new URLSearchParams();
 
-      if (filters.brand) queryParams.set('brand', filters.brand);
+      if (filters.brands && filters.brands.length > 0) {
+        filters.brands.forEach((brand) => queryParams.append('brand', brand));
+      }
       if (filters.type) queryParams.set('type', filters.type);
       if (filters.search) queryParams.set('search', filters.search);
+      if (filters.min_price) queryParams.set('min_price', filters.min_price.toString());
+      if (filters.max_price) queryParams.set('max_price', filters.max_price.toString());
+      if (filters.in_stock !== undefined) queryParams.set('in_stock', filters.in_stock.toString());
+      if (filters.sort) queryParams.set('sort', filters.sort);
+      if (filters.dir) queryParams.set('dir', filters.dir);
       if (filters.page) queryParams.set('page', filters.page.toString());
       if (filters.limit) queryParams.set('limit', filters.limit.toString());
 

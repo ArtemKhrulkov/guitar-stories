@@ -23,10 +23,12 @@ func NewGuitarHandler(repo *repository.GuitarRepository) *GuitarHandler {
 func (h *GuitarHandler) GetAll(c *gin.Context) {
 	filter := repository.GuitarFilter{}
 
-	if brandID := c.Query("brand"); brandID != "" {
-		id, err := uuid.Parse(brandID)
-		if err == nil {
-			filter.BrandID = &id
+	if brands := c.QueryArray("brand"); len(brands) > 0 {
+		for _, brandID := range brands {
+			id, err := uuid.Parse(brandID)
+			if err == nil {
+				filter.BrandIDs = append(filter.BrandIDs, id)
+			}
 		}
 	}
 
@@ -38,6 +40,28 @@ func (h *GuitarHandler) GetAll(c *gin.Context) {
 	if search := c.Query("search"); search != "" {
 		filter.Search = &search
 	}
+
+	if minPrice := c.Query("min_price"); minPrice != "" {
+		if mp, err := strconv.ParseFloat(minPrice, 64); err == nil {
+			filter.MinPrice = &mp
+		}
+	}
+
+	if maxPrice := c.Query("max_price"); maxPrice != "" {
+		if mp, err := strconv.ParseFloat(maxPrice, 64); err == nil {
+			filter.MaxPrice = &mp
+		}
+	}
+
+	if inStock := c.Query("in_stock"); inStock != "" {
+		is, err := strconv.ParseBool(inStock)
+		if err == nil {
+			filter.InStock = &is
+		}
+	}
+
+	filter.SortBy = c.DefaultQuery("sort", "newest")
+	filter.SortDir = c.DefaultQuery("dir", "desc")
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "12"))

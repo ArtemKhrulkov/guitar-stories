@@ -8,6 +8,17 @@
             <p class="text-body-2 text-medium-emphasis">{{ total }} guitars found</p>
           </div>
           <div class="d-flex align-center ga-2">
+            <v-select
+              v-model="sortValue"
+              :items="sortOptions"
+              variant="outlined"
+              density="compact"
+              hide-details
+              prepend-inner-icon="mdi-sort"
+              class="sort-select"
+              style="max-width: 180px"
+              @update:model-value="onSortChange"
+            />
             <v-btn-toggle v-model="viewMode" mandatory variant="outlined" color="primary">
               <v-btn value="grid" size="small" aria-label="Grid view">
                 <IconifyIcon icon="mdi-view-grid" />
@@ -26,8 +37,12 @@
         <v-col cols="12" md="3">
           <div class="filters-sidebar">
             <GuitarFilters
-              v-model:selected-brand="selectedBrand"
+              v-model:selected-brands="selectedBrands"
               v-model:selected-type="selectedType"
+              v-model:selected-sort="selectedSort"
+              v-model:min-price="minPrice"
+              v-model:max-price="maxPrice"
+              v-model:in-stock="inStock"
               v-model:search-query="searchQuery"
               :brands="brands"
               :loading="filtersLoading"
@@ -53,6 +68,19 @@
 
             <div v-if="hasActiveFilters" class="active-filters">
               <v-chip
+                v-for="brand in selectedBrandChips"
+                :key="brand.id"
+                closable
+                size="small"
+                color="secondary"
+                variant="tonal"
+                class="mr-2 mb-2"
+                @click:close="removeBrand(brand.id)"
+              >
+                <IconifyIcon icon="mdi-factory" size="14" class="mr-1" />
+                {{ brand.name }}
+              </v-chip>
+              <v-chip
                 v-if="selectedType"
                 closable
                 size="small"
@@ -65,16 +93,28 @@
                 {{ selectedType }}
               </v-chip>
               <v-chip
-                v-if="selectedBrand"
+                v-if="priceRangeLabel"
                 closable
                 size="small"
-                color="secondary"
+                color="warning"
                 variant="tonal"
                 class="mr-2 mb-2"
-                @click:close="selectedBrand = ''"
+                @click:close="clearPriceRange"
               >
-                <IconifyIcon icon="mdi-factory" size="14" class="mr-1" />
-                {{ getBrandName(selectedBrand) }}
+                <IconifyIcon icon="mdi-currency-rub" size="14" class="mr-1" />
+                {{ priceRangeLabel }}
+              </v-chip>
+              <v-chip
+                v-if="inStock"
+                closable
+                size="small"
+                color="success"
+                variant="tonal"
+                class="mr-2 mb-2"
+                @click:close="inStock = undefined"
+              >
+                <IconifyIcon icon="mdi-package-variant-closed" size="14" class="mr-1" />
+                In Stock
               </v-chip>
               <v-btn
                 v-if="hasActiveFilters"
@@ -129,36 +169,105 @@
 
 <script setup lang="ts">
 const route = useRoute();
+const router = useRouter();
 
 const { guitars, total, loading, fetchGuitars } = useGuitars();
 const { brands, loading: filtersLoading, fetchBrands } = useBrands();
 
-const selectedBrand = ref<string>('');
-const selectedType = ref<'electric' | 'acoustic' | 'bass' | ''>('');
+const selectedBrands = ref<string[]>([]);
+const selectedType = ref<string>('');
+const selectedSort = ref<string>('newest');
+const minPrice = ref<number | undefined>(undefined);
+const maxPrice = ref<number | undefined>(undefined);
+const inStock = ref<boolean | undefined>(undefined);
 const searchQuery = ref<string>('');
 const currentPage = ref<number>(1);
 const viewMode = ref<'grid' | 'list'>('grid');
 const itemsPerPage = 12;
 
+const sortOptions = [
+  { title: 'Newest First', value: 'newest' },
+  { title: 'Oldest First', value: 'oldest' },
+  { title: 'A-Z', value: 'model_asc' },
+  { title: 'Z-A', value: 'model_desc' },
+];
+
+const sortValue = computed({
+  get: () => selectedSort.value,
+  set: (val) => {
+    selectedSort.value = val || 'newest';
+  },
+});
+
 let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 const hasActiveFilters = computed(() => {
-  return selectedBrand.value || selectedType.value || searchQuery.value;
+  return (
+    selectedBrands.value.length > 0 ||
+    selectedType.value ||
+    minPrice.value !== undefined ||
+    maxPrice.value !== undefined ||
+    inStock.value !== undefined ||
+    searchQuery.value
+  );
 });
 
 const totalPages = computed(() => Math.ceil(total.value / itemsPerPage));
 
-const getBrandName = (brandId: string) => {
-  const brand = brands.value.find((b) => b.id === brandId);
-  return brand?.name || brandId;
+const selectedBrandChips = computed(() => {
+  return brands.value
+    .filter((b) => selectedBrands.value.includes(b.id))
+    .map((b) => ({ id: b.id, name: b.name }));
+});
+
+const priceRangeLabel = computed(() => {
+  if (minPrice.value && maxPrice.value) {
+    return `${formatPrice(minPrice.value)} - ${formatPrice(maxPrice.value)}`;
+  }
+  if (minPrice.value) {
+    return `от ${formatPrice(minPrice.value)}`;
+  }
+  if (maxPrice.value) {
+    return `до ${formatPrice(maxPrice.value)}`;
+  }
+  return '';
+});
+
+const formatPrice = (price: number) => {
+  if (price >= 1000) {
+    return `${(price / 1000).toFixed(0)}K`;
+  }
+  return price.toString();
+};
+
+const getSortParams = (sort: string) => {
+  switch (sort) {
+    case 'newest':
+      return { sort: 'newest' as const, dir: 'desc' as const };
+    case 'oldest':
+      return { sort: 'newest' as const, dir: 'asc' as const };
+    case 'model_asc':
+      return { sort: 'model' as const, dir: 'asc' as const };
+    case 'model_desc':
+      return { sort: 'model' as const, dir: 'desc' as const };
+    default:
+      return { sort: 'newest' as const, dir: 'desc' as const };
+  }
 };
 
 const applyFilters = async () => {
   currentPage.value = 1;
+  updateURL();
+  const sortParams = getSortParams(selectedSort.value);
   await fetchGuitars({
-    brand: selectedBrand.value || undefined,
-    type: selectedType.value || undefined,
+    brands: selectedBrands.value.length > 0 ? selectedBrands.value : undefined,
+    type: (selectedType.value as 'electric' | 'acoustic' | 'bass') || undefined,
     search: searchQuery.value || undefined,
+    min_price: minPrice.value,
+    max_price: maxPrice.value,
+    in_stock: inStock.value,
+    sort: sortParams.sort,
+    dir: sortParams.dir,
     page: currentPage.value,
     limit: itemsPerPage,
   });
@@ -173,24 +282,64 @@ const onSearchInput = () => {
   }, 500);
 };
 
+const onSortChange = () => {
+  applyFilters();
+};
+
 const clearFilters = async () => {
-  selectedBrand.value = '';
+  selectedBrands.value = [];
   selectedType.value = '';
+  minPrice.value = undefined;
+  maxPrice.value = undefined;
+  inStock.value = undefined;
   searchQuery.value = '';
   currentPage.value = 1;
   await applyFilters();
 };
 
+const clearPriceRange = () => {
+  minPrice.value = undefined;
+  maxPrice.value = undefined;
+};
+
+const removeBrand = (brandId: string) => {
+  selectedBrands.value = selectedBrands.value.filter((b) => b !== brandId);
+};
+
 const changePage = async (page: number) => {
   currentPage.value = page;
+  updateURL();
+  const sortParams = getSortParams(selectedSort.value);
   await fetchGuitars({
-    brand: selectedBrand.value || undefined,
-    type: selectedType.value || undefined,
+    brands: selectedBrands.value.length > 0 ? selectedBrands.value : undefined,
+    type: (selectedType.value as 'electric' | 'acoustic' | 'bass') || undefined,
     search: searchQuery.value || undefined,
+    min_price: minPrice.value,
+    max_price: maxPrice.value,
+    in_stock: inStock.value,
+    sort: sortParams.sort,
+    dir: sortParams.dir,
     page: currentPage.value,
     limit: itemsPerPage,
   });
   window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+const updateURL = () => {
+  const query: Record<string, string> = {};
+  if (selectedBrands.value.length === 1) {
+    query.brand = selectedBrands.value[0];
+  } else if (selectedBrands.value.length > 1) {
+    query.brands = selectedBrands.value.join(',');
+  }
+  if (selectedType.value) query.type = selectedType.value;
+  if (searchQuery.value) query.search = searchQuery.value;
+  if (minPrice.value) query.min_price = minPrice.value.toString();
+  if (maxPrice.value) query.max_price = maxPrice.value.toString();
+  if (inStock.value) query.in_stock = 'true';
+  if (selectedSort.value !== 'newest') query.sort = selectedSort.value;
+  if (currentPage.value > 1) query.page = currentPage.value.toString();
+  router.replace({ query });
 };
 
 useHead({
@@ -199,37 +348,71 @@ useHead({
 
 await fetchBrands();
 
-if (route.query.search) {
-  searchQuery.value = route.query.search as string;
-}
-if (route.query.brand) {
-  selectedBrand.value = route.query.brand as string;
-}
-if (route.query.type) {
-  selectedType.value = route.query.type as 'electric' | 'acoustic' | 'bass' | '';
-}
-if (route.query.page) {
-  currentPage.value = parseInt(route.query.page as string);
-}
+const parseQueryParams = () => {
+  if (route.query.brand) {
+    selectedBrands.value = Array.isArray(route.query.brand)
+      ? route.query.brand as string[]
+      : [route.query.brand as string];
+  }
+  if (route.query.brands) {
+    selectedBrands.value = (route.query.brands as string).split(',');
+  }
+  if (route.query.type) {
+    selectedType.value = route.query.type as string;
+  }
+  if (route.query.search) {
+    searchQuery.value = route.query.search as string;
+  }
+  if (route.query.min_price) {
+    minPrice.value = parseInt(route.query.min_price as string);
+  }
+  if (route.query.max_price) {
+    maxPrice.value = parseInt(route.query.max_price as string);
+  }
+  if (route.query.in_stock) {
+    inStock.value = route.query.in_stock === 'true';
+  }
+  if (route.query.sort) {
+    selectedSort.value = route.query.sort as string;
+  }
+  if (route.query.page) {
+    currentPage.value = parseInt(route.query.page as string);
+  }
+};
 
-await applyFilters();
+parseQueryParams();
+
+const sortParams = getSortParams(selectedSort.value);
+await fetchGuitars({
+  brands: selectedBrands.value.length > 0 ? selectedBrands.value : undefined,
+  type: (selectedType.value as 'electric' | 'acoustic' | 'bass') || undefined,
+  search: searchQuery.value || undefined,
+  min_price: minPrice.value,
+  max_price: maxPrice.value,
+  in_stock: inStock.value,
+  sort: sortParams.sort,
+  dir: sortParams.dir,
+  page: currentPage.value,
+  limit: itemsPerPage,
+});
 
 watch(
   () => route.query,
-  async (query) => {
-    if (query.search !== undefined) {
-      searchQuery.value = query.search as string;
-    }
-    if (query.brand !== undefined) {
-      selectedBrand.value = query.brand as string;
-    }
-    if (query.type !== undefined) {
-      selectedType.value = query.type as 'electric' | 'acoustic' | 'bass' | '';
-    }
-    if (query.page !== undefined) {
-      currentPage.value = parseInt(query.page as string);
-    }
-    await applyFilters();
+  async () => {
+    parseQueryParams();
+    const sortParams = getSortParams(selectedSort.value);
+    await fetchGuitars({
+      brands: selectedBrands.value.length > 0 ? selectedBrands.value : undefined,
+      type: (selectedType.value as 'electric' | 'acoustic' | 'bass') || undefined,
+      search: searchQuery.value || undefined,
+      min_price: minPrice.value,
+      max_price: maxPrice.value,
+      in_stock: inStock.value,
+      sort: sortParams.sort,
+      dir: sortParams.dir,
+      page: currentPage.value,
+      limit: itemsPerPage,
+    });
   },
 );
 </script>
@@ -261,6 +444,10 @@ watch(
 
 .search-field {
   max-width: 400px;
+}
+
+.sort-select {
+  min-width: 160px;
 }
 
 .active-filters {

@@ -71,9 +71,14 @@ export interface PurchaseLink {
 }
 
 export interface GuitarFilters {
-  brand?: string;
+  brands?: string[];
   type?: 'electric' | 'acoustic' | 'bass';
   search?: string;
+  min_price?: number;
+  max_price?: number;
+  in_stock?: boolean;
+  sort?: 'newest' | 'model' | 'price';
+  dir?: 'asc' | 'desc';
   page?: number;
   limit?: number;
 }

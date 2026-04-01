@@ -19,11 +19,16 @@ func NewGuitarRepository(db *gorm.DB) *GuitarRepository {
 }
 
 type GuitarFilter struct {
-	BrandID *uuid.UUID
-	Type    *models.GuitarType
-	Search  *string
-	Page    int
-	Limit   int
+	BrandIDs []uuid.UUID
+	Type     *models.GuitarType
+	Search   *string
+	MinPrice *float64
+	MaxPrice *float64
+	InStock  *bool
+	SortBy   string
+	SortDir  string
+	Page     int
+	Limit    int
 }
 
 func (r *GuitarRepository) FindAll(filter GuitarFilter) ([]models.Guitar, int64, error) {
@@ -32,8 +37,8 @@ func (r *GuitarRepository) FindAll(filter GuitarFilter) ([]models.Guitar, int64,
 
 	query := r.db.Model(&models.Guitar{})
 
-	if filter.BrandID != nil {
-		query = query.Where("brand_id = ?", *filter.BrandID)
+	if len(filter.BrandIDs) > 0 {
+		query = query.Where("brand_id IN ?", filter.BrandIDs)
 	}
 
 	if filter.Type != nil {
@@ -43,6 +48,24 @@ func (r *GuitarRepository) FindAll(filter GuitarFilter) ([]models.Guitar, int64,
 	if filter.Search != nil && *filter.Search != "" {
 		searchTerm := "%" + strings.ToLower(*filter.Search) + "%"
 		query = query.Where("LOWER(model) LIKE ? OR LOWER(history) LIKE ?", searchTerm, searchTerm)
+	}
+
+	subQuery := r.db.Model(&models.PurchaseLink{}).Select("guitar_id").Group("guitar_id")
+
+	if filter.MinPrice != nil {
+		subQuery = subQuery.Having("MIN(price_rub) >= ?", *filter.MinPrice)
+	}
+
+	if filter.MaxPrice != nil {
+		subQuery = subQuery.Having("MAX(price_rub) <= ?", *filter.MaxPrice)
+	}
+
+	if filter.InStock != nil && *filter.InStock {
+		subQuery = subQuery.Having("SUM(CASE WHEN in_stock = true THEN 1 ELSE 0 END) > 0")
+	}
+
+	if filter.MinPrice != nil || filter.MaxPrice != nil || (filter.InStock != nil && *filter.InStock) {
+		query = query.Where("id IN (?)", subQuery)
 	}
 
 	query.Count(&total)
@@ -55,9 +78,26 @@ func (r *GuitarRepository) FindAll(filter GuitarFilter) ([]models.Guitar, int64,
 	}
 
 	offset := (filter.Page - 1) * filter.Limit
+
+	orderClause := "created_at DESC"
+	if filter.SortBy != "" {
+		dir := "ASC"
+		if filter.SortDir == "desc" {
+			dir = "DESC"
+		}
+		switch filter.SortBy {
+		case "model":
+			orderClause = "model " + dir
+		case "price":
+			orderClause = "created_at " + dir
+		case "newest":
+			orderClause = "created_at DESC"
+		}
+	}
+
 	err := query.Preload("Brand").
 		Preload("PurchaseLinks").
-		Order("created_at DESC").
+		Order(orderClause).
 		Offset(offset).
 		Limit(filter.Limit).
 		Find(&guitars).Error
