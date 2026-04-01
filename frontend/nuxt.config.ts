@@ -1,23 +1,35 @@
-import vuetify, { transformAssetUrls } from "vite-plugin-vuetify";
+import vuetify, { transformAssetUrls } from 'vite-plugin-vuetify';
+
+const modules = [
+  '@nuxtjs/tailwindcss',
+  '@pinia/nuxt',
+  '@nuxt/image',
+  (_options, nuxt) => {
+    nuxt.hooks.hook('vite:extendConfig', (config) => {
+      config.plugins!.push(vuetify({ autoImport: true }));
+    });
+  },
+];
+
+// Only load ESLint in development (when module is available)
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    require.resolve('@nuxt/eslint');
+    modules.push('@nuxt/eslint');
+  } catch {
+    // ESLint module not available, skipping...
+  }
+}
 
 export default defineNuxtConfig({
-  compatibilityDate: "2024-11-01",
+  compatibilityDate: '2024-11-01',
   devtools: { enabled: false },
 
   build: {
-    transpile: ["vuetify"],
+    transpile: ['vuetify'],
   },
 
-  modules: [
-    "@nuxtjs/tailwindcss",
-    "@pinia/nuxt",
-    "@nuxt/image",
-    (_options, nuxt) => {
-      nuxt.hooks.hook("vite:extendConfig", (config) => {
-        config.plugins!.push(vuetify({ autoImport: true }));
-      });
-    },
-  ],
+  modules,
 
   vite: {
     vue: {
@@ -27,82 +39,82 @@ export default defineNuxtConfig({
     },
   },
 
-  css: ["vuetify/lib/styles/main.sass", "~/assets/css/main.css"],
+  css: ['vuetify/lib/styles/main.sass', '~/assets/css/main.css'],
 
   runtimeConfig: {
     public: {
-      apiUrl: process.env.NUXT_PUBLIC_API_URL || "/api",
-      apiBackendUrl: process.env.NUXT_PUBLIC_API_BACKEND_URL || "http://localhost:8080",
+      apiUrl: process.env.NUXT_PUBLIC_API_URL || '/api',
+      apiBackendUrl: process.env.NUXT_PUBLIC_API_BACKEND_URL || 'http://localhost:8080',
     },
   },
 
   app: {
     head: {
       htmlAttrs: {
-        lang: "en",
+        lang: 'en',
       },
-      title: "Guitar Stock - Your Guitar Catalog",
+      title: 'Guitar Stock - Your Guitar Catalog',
       meta: [
-        { charset: "utf-8" },
-        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        { charset: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         {
-          name: "description",
+          name: 'description',
           content:
-            "Browse guitar catalogs, explore detailed descriptions, view famous players, and find purchase links.",
+            'Browse guitar catalogs, explore detailed descriptions, view famous players, and find purchase links.',
         },
-        { property: "og:title", content: "Guitar Stock - Your Guitar Catalog" },
+        { property: 'og:title', content: 'Guitar Stock - Your Guitar Catalog' },
         {
-          property: "og:description",
+          property: 'og:description',
           content:
-            "Browse guitar catalogs, explore detailed descriptions, view famous players, and find purchase links.",
+            'Browse guitar catalogs, explore detailed descriptions, view famous players, and find purchase links.',
         },
-        { property: "og:type", content: "website" },
-        { name: "twitter:card", content: "summary_large_image" },
+        { property: 'og:type', content: 'website' },
+        { name: 'twitter:card', content: 'summary_large_image' },
         {
-          name: "twitter:title",
-          content: "Guitar Stock - Your Guitar Catalog",
+          name: 'twitter:title',
+          content: 'Guitar Stock - Your Guitar Catalog',
         },
         {
-          name: "twitter:description",
+          name: 'twitter:description',
           content:
-            "Browse guitar catalogs, explore detailed descriptions, view famous players, and find purchase links.",
+            'Browse guitar catalogs, explore detailed descriptions, view famous players, and find purchase links.',
         },
       ],
       link: [
-        { rel: "icon", type: "image/x-icon", href: "/favicon.ico" },
-        { rel: "preconnect", href: "http://localhost:8080" },
+        { rel: 'icon', type: 'image/x-icon', href: '/favicon.ico' },
+        { rel: 'preconnect', href: 'http://localhost:8080' },
       ],
     },
   },
 
   image: {
     domains: [
-      "via.placeholder.com",
-      "media.musiciansfriend.com",
-      "www.ibanez.com",
-      "cdn.mos.cms.futurecdn.net",
-      "down-id.img.susercontent.com",
-      "whatgear-pictures.s3.us-west-2.amazonaws.com",
-      "www.static-src.com",
-      "www.musicworks.co.nz",
+      'via.placeholder.com',
+      'media.musiciansfriend.com',
+      'www.ibanez.com',
+      'cdn.mos.cms.futurecdn.net',
+      'down-id.img.susercontent.com',
+      'whatgear-pictures.s3.us-west-2.amazonaws.com',
+      'www.static-src.com',
+      'www.musicworks.co.nz',
     ],
-    format: ["webp", "avif"],
+    format: ['webp', 'avif'],
     quality: 80,
   },
 
   ssr: true,
 
   nitro: {
-    preset: "node-server",
+    preset: 'node-server',
   },
 
   routeRules: {
-    "/": { isr: 3600 },
-    "/guitars": { isr: 3600 },
-    "/guitars/**": { isr: 3600 },
-    "/brands": { isr: 3600 },
-    "/brands/**": { isr: 3600 },
-    "/compare": { ssr: true },
-    "/admin/**": { ssr: false },
+    '/': { isr: 3600 },
+    '/guitars': { isr: 3600 },
+    '/guitars/**': { isr: 3600 },
+    '/brands': { isr: 3600 },
+    '/brands/**': { isr: 3600 },
+    '/compare': { ssr: true },
+    '/admin/**': { ssr: false },
   },
 });

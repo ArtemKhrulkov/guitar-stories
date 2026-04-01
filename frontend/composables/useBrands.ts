@@ -1,4 +1,4 @@
-import type { Brand } from "~/types";
+import type { Brand, Guitar } from '~/types';
 
 export const useBrands = () => {
   const config = useRuntimeConfig();
@@ -16,9 +16,9 @@ export const useBrands = () => {
     try {
       const response = await $fetch<{ brands: Brand[] }>(`${apiUrl}/brands`);
       brands.value = response.brands || [];
-    } catch (e: any) {
-      error.value = e.message || "Failed to fetch brands";
-      console.error("Error fetching brands:", e);
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to fetch brands';
+      console.error('Error fetching brands:', e);
     } finally {
       loading.value = false;
     }
@@ -29,14 +29,12 @@ export const useBrands = () => {
     error.value = null;
 
     try {
-      const response = await $fetch<{ brand: Brand; guitars: any[] }>(
-        `${apiUrl}/brands/${id}`,
-      );
+      const response = await $fetch<{ brand: Brand; guitars: Guitar[] }>(`${apiUrl}/brands/${id}`);
       currentBrand.value = response.brand;
       return response;
-    } catch (e: any) {
-      error.value = e.message || "Failed to fetch brand";
-      console.error("Error fetching brand:", e);
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to fetch brand';
+      console.error('Error fetching brand:', e);
       return null;
     } finally {
       loading.value = false;

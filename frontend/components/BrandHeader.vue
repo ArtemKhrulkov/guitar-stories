@@ -14,22 +14,22 @@
             quality="80"
             class="brand-logo-image"
           />
-          <IconifyIcon v-else icon="mdi-guitar-electric" size="80" aria-hidden="true"></IconifyIcon>
+          <IconifyIcon v-else icon="mdi-guitar-electric" size="80" aria-hidden="true" />
         </v-avatar>
       </v-col>
 
       <v-col cols="12" md="8">
         <v-card-text class="pa-6">
           <h1 class="text-h3 font-weight-bold mb-2">{{ brand.name }}</h1>
-          
+
           <div class="d-flex align-center gap-4 mb-4">
             <v-chip color="secondary" variant="flat">
-              <IconifyIcon icon="mdi-earth" class="mr-1" aria-hidden="true"></IconifyIcon>
+              <IconifyIcon icon="mdi-earth" class="mr-1" aria-hidden="true" />
               {{ brand.country }}
             </v-chip>
-            
+
             <v-chip v-if="brand.founded_year" color="primary" variant="outlined">
-              <IconifyIcon icon="mdi-calendar" class="mr-1" aria-hidden="true"></IconifyIcon>
+              <IconifyIcon icon="mdi-calendar" class="mr-1" aria-hidden="true" />
               Founded {{ brand.founded_year }}
             </v-chip>
           </div>
@@ -38,15 +38,15 @@
             {{ brand.description }}
           </p>
 
-          <v-divider class="my-4"></v-divider>
+          <v-divider class="my-4" />
 
           <div class="d-flex gap-2">
             <v-btn color="primary" :to="`/guitars?brand=${brand.id}`">
-              <IconifyIcon icon="mdi-guitar-electric" class="mr-2" aria-hidden="true"></IconifyIcon>
+              <IconifyIcon icon="mdi-guitar-electric" class="mr-2" aria-hidden="true" />
               View Guitars
             </v-btn>
-            <v-btn variant="outlined" @click="shareBrand" aria-label="Share this brand">
-              <IconifyIcon icon="mdi-share-variant" class="mr-2" aria-hidden="true"></IconifyIcon>
+            <v-btn variant="outlined" aria-label="Share this brand" @click="shareBrand">
+              <IconifyIcon icon="mdi-share-variant" class="mr-2" aria-hidden="true" />
               Share
             </v-btn>
           </div>
@@ -57,11 +57,11 @@
 </template>
 
 <script setup lang="ts">
-import type { Brand } from '~/types'
+import type { Brand } from '~/types';
 
 defineProps<{
-  brand: Brand
-}>()
+  brand: Brand;
+}>();
 
 const shareBrand = async () => {
   if (navigator.share) {
@@ -69,12 +69,12 @@ const shareBrand = async () => {
       await navigator.share({
         title: 'Check out this guitar brand',
         url: window.location.href,
-      })
-    } catch (err) {
-      console.log('Share cancelled')
+      });
+    } catch {
+      console.log('Share cancelled');
     }
   }
-}
+};
 </script>
 
 <style scoped>

@@ -18,7 +18,7 @@
       />
     </v-avatar>
     {{ player.name }}
-    
+
     <v-tooltip v-if="player.genre" activator="parent" location="top">
       {{ player.genre }}
     </v-tooltip>
@@ -26,9 +26,9 @@
 </template>
 
 <script setup lang="ts">
-import type { Player } from '~/types'
+import type { Player } from '~/types';
 
 defineProps<{
-  player: Player
-}>()
+  player: Player;
+}>();
 </script>

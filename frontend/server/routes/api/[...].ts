@@ -3,7 +3,7 @@ export default defineEventHandler(async (event) => {
   const backendUrl =
     config.public.apiBackendUrl ||
     process.env.NUXT_PUBLIC_API_BACKEND_URL ||
-    "http://localhost:8080";
+    'http://localhost:8080';
 
   const path = event.path;
   const query = getQuery(event);
@@ -13,25 +13,30 @@ export default defineEventHandler(async (event) => {
   const method = getMethod(event);
   const headers = getHeaders(event);
 
-  const body =
-    method !== "GET" && method !== "HEAD" ? await readBody(event) : undefined;
+  const body = method !== 'GET' && method !== 'HEAD' ? await readBody(event) : undefined;
 
   try {
     const response = await $fetch(fullUrl, {
       method,
       headers: {
         ...headers,
-        host: "",
+        host: '',
       },
       body,
       query,
     });
 
     return response;
-  } catch (error: any) {
+  } catch (err: unknown) {
+    const error = err as {
+      status?: number;
+      statusText?: string;
+      data?: { message?: string };
+      message: string;
+    };
     throw createError({
       statusCode: error.status || 500,
-      statusMessage: error.statusText || "Proxy Error",
+      statusMessage: error.statusText || 'Proxy Error',
       message: error.data?.message || error.message,
     });
   }

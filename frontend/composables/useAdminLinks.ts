@@ -1,6 +1,8 @@
+import type { Specifications } from '~/types';
+
 export interface LinkInput {
   guitar_id: string;
-  platform: "ozon" | "wildberries" | "sweetwater" | "guitarcenter";
+  platform: 'ozon' | 'wildberries' | 'sweetwater' | 'guitarcenter';
   url: string;
   price_rub?: number;
   price_usd?: number;
@@ -27,17 +29,7 @@ export interface Guitar {
   price_range?: string;
   image_url?: string;
   history?: string;
-  specifications?: {
-    body_wood?: string;
-    neck_wood?: string;
-    fretboard?: string;
-    pickup_config?: string;
-    frets?: number;
-    scale_length?: string;
-    hardware?: string;
-    bridge?: string;
-    tuners?: string;
-  };
+  specifications?: Specifications;
   brand?: {
     id: string;
     name: string;
@@ -47,20 +39,20 @@ export interface Guitar {
 export interface GuitarUpdate {
   model?: string;
   image_url?: string;
-  guitar_type?: "electric" | "acoustic" | "bass";
+  guitar_type?: 'electric' | 'acoustic' | 'bass';
   price_range?: string;
   history?: string;
-  specifications?: Record<string, any>;
+  specifications?: Specifications;
 }
 
 export interface GuitarCreate {
   brand_id: string;
   model: string;
-  guitar_type: "electric" | "acoustic" | "bass";
+  guitar_type: 'electric' | 'acoustic' | 'bass';
   price_range?: string;
   image_url?: string;
   history?: string;
-  specifications?: Record<string, any>;
+  specifications?: Specifications;
 }
 
 export interface Brand {
@@ -84,8 +76,8 @@ export const useAdminLinks = (): AdminLinksState => {
   const config = useRuntimeConfig();
   const API_BASE = config.public.apiUrl;
 
-  const guitars = useState<Guitar[]>("admin-guitars", () => []);
-  const isLoading = useState<boolean>("admin-links-loading", () => false);
+  const guitars = useState<Guitar[]>('admin-guitars', () => []);
+  const isLoading = useState<boolean>('admin-links-loading', () => false);
 
   const searchGuitars = async (query: string): Promise<void> => {
     if (!query || query.length < 2) {
@@ -97,12 +89,12 @@ export const useAdminLinks = (): AdminLinksState => {
       const response = await $fetch<{ guitars: Guitar[] }>(
         `${API_BASE}/guitars?search=${encodeURIComponent(query)}&limit=20`,
         {
-          credentials: "include",
+          credentials: 'include',
         },
       );
       guitars.value = response.guitars;
     } catch (error) {
-      console.error("Failed to search guitars:", error);
+      console.error('Failed to search guitars:', error);
       guitars.value = [];
     } finally {
       isLoading.value = false;
@@ -110,55 +102,43 @@ export const useAdminLinks = (): AdminLinksState => {
   };
 
   const addLink = async (input: LinkInput): Promise<PurchaseLink> => {
-    const response = await $fetch<{ link: PurchaseLink }>(
-      `${API_BASE}/admin/links`,
-      {
-        method: "POST",
-        credentials: "include",
-        body: input,
-      },
-    );
+    const response = await $fetch<{ link: PurchaseLink }>(`${API_BASE}/admin/links`, {
+      method: 'POST',
+      credentials: 'include',
+      body: input,
+    });
     return response.link;
   };
 
   const deleteLink = async (linkId: string): Promise<void> => {
     await $fetch(`${API_BASE}/admin/links`, {
-      method: "DELETE",
-      credentials: "include",
+      method: 'DELETE',
+      credentials: 'include',
       body: { link_id: linkId },
     });
   };
 
-  const updateGuitar = async (
-    id: string,
-    data: GuitarUpdate,
-  ): Promise<Guitar> => {
-    const response = await $fetch<{ guitar: Guitar }>(
-      `${API_BASE}/admin/guitars/${id}`,
-      {
-        method: "PATCH",
-        credentials: "include",
-        body: data,
-      },
-    );
+  const updateGuitar = async (id: string, data: GuitarUpdate): Promise<Guitar> => {
+    const response = await $fetch<{ guitar: Guitar }>(`${API_BASE}/admin/guitars/${id}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      body: data,
+    });
     return response.guitar;
   };
 
   const createGuitar = async (data: GuitarCreate): Promise<Guitar> => {
-    const response = await $fetch<{ guitar: Guitar }>(
-      `${API_BASE}/admin/guitars`,
-      {
-        method: "POST",
-        credentials: "include",
-        body: data,
-      },
-    );
+    const response = await $fetch<{ guitar: Guitar }>(`${API_BASE}/admin/guitars`, {
+      method: 'POST',
+      credentials: 'include',
+      body: data,
+    });
     return response.guitar;
   };
 
   const getBrands = async (): Promise<Brand[]> => {
     const response = await $fetch<{ brands: Brand[] }>(`${API_BASE}/brands`, {
-      credentials: "include",
+      credentials: 'include',
     });
     return response.brands;
   };
