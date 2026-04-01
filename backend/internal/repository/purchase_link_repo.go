@@ -90,3 +90,16 @@ func (r *PurchaseLinkRepository) DeleteByGuitarID(guitarID uuid.UUID) error {
 func (r *PurchaseLinkRepository) DeleteByID(id uuid.UUID) error {
 	return r.db.Delete(&models.PurchaseLink{}, "id = ?", id).Error
 }
+
+func (r *PurchaseLinkRepository) FindByID(id uuid.UUID) (*models.PurchaseLink, error) {
+	var link models.PurchaseLink
+	err := r.db.First(&link, "id = ?", id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &link, nil
+}
+
+func (r *PurchaseLinkRepository) Update(link *models.PurchaseLink) error {
+	return r.db.Save(link).Error
+}

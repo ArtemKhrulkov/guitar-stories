@@ -94,6 +94,15 @@
                     <IconifyIcon icon="mdi:plus" class="mr-1" />
                     Add Link
                   </v-btn>
+                  <v-btn
+                    size="small"
+                    color="error"
+                    variant="tonal"
+                    @click.stop="confirmDeleteGuitar(guitar)"
+                  >
+                    <IconifyIcon icon="mdi:delete" class="mr-1" />
+                    Delete
+                  </v-btn>
                 </div>
               </div>
 
@@ -356,6 +365,23 @@
       </v-card>
     </v-dialog>
 
+    <v-dialog v-model="deleteDialog.show" max-width="400">
+      <v-card>
+        <v-card-title>Delete Guitar</v-card-title>
+        <v-card-text>
+          Are you sure you want to delete <strong>{{ deleteDialog.guitar?.brand?.name }} {{ deleteDialog.guitar?.model }}</strong>?
+          This will also delete all associated purchase links. This action cannot be undone.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn @click="deleteDialog.show = false">Cancel</v-btn>
+          <v-btn color="error" :loading="deleteDialog.loading" @click="handleDeleteGuitar">
+            Delete
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-snackbar v-model="snackbar.show" :color="snackbar.color">
       {{ snackbar.message }}
     </v-snackbar>
@@ -381,7 +407,7 @@ definePageMeta({
 const config = useRuntimeConfig();
 const API_BASE = config.public.apiUrl;
 
-const { addLink, deleteLink, updateGuitar, createGuitar, getBrands } = useAdminLinks();
+const { addLink, deleteLink, deleteGuitar, updateGuitar, createGuitar, getBrands } = useAdminLinks();
 
 const search = ref('');
 const page = ref(1);
@@ -475,6 +501,16 @@ const addLinkDialog = ref<{
     price_usd: undefined,
     in_stock: true,
   },
+});
+
+const deleteDialog = ref<{
+  show: boolean;
+  loading: boolean;
+  guitar: Guitar | null;
+}>({
+  show: false,
+  loading: false,
+  guitar: null,
 });
 
 const snackbar = ref({
@@ -763,6 +799,39 @@ const handleDeleteLink = async (linkId: string) => {
       message: e.data?.error || 'Failed to delete link',
       color: 'error',
     };
+  }
+};
+
+const confirmDeleteGuitar = (guitar: Guitar) => {
+  deleteDialog.value = {
+    show: true,
+    loading: false,
+    guitar,
+  };
+};
+
+const handleDeleteGuitar = async () => {
+  if (!deleteDialog.value.guitar) return;
+
+  deleteDialog.value.loading = true;
+  try {
+    await deleteGuitar(deleteDialog.value.guitar.id);
+    snackbar.value = {
+      show: true,
+      message: 'Guitar deleted successfully',
+      color: 'success',
+    };
+    deleteDialog.value.show = false;
+    fetchGuitars();
+  } catch (err: unknown) {
+    const e = err as { data?: { error?: string } };
+    snackbar.value = {
+      show: true,
+      message: e.data?.error || 'Failed to delete guitar',
+      color: 'error',
+    };
+  } finally {
+    deleteDialog.value.loading = false;
   }
 };
 

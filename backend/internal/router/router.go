@@ -57,9 +57,17 @@ func Setup(db *gorm.DB, cfg *config.Config, scraperService *scraper.Service) *gi
 			admin.POST("/scrape/sync-price-ranges", scraperHandler.SyncPriceRanges)
 			admin.GET("/links", adminHandler.GetLinks)
 			admin.POST("/links", adminHandler.AddLink)
+			admin.PATCH("/links", adminHandler.UpdateLink)
 			admin.DELETE("/links", adminHandler.DeleteLink)
 			admin.POST("/guitars", guitarHandler.Create)
 			admin.PATCH("/guitars/:id", guitarHandler.Update)
+			admin.DELETE("/guitars/:id", guitarHandler.Delete)
+			admin.POST("/brands", brandHandler.Create)
+			admin.PATCH("/brands/:id", brandHandler.Update)
+			admin.DELETE("/brands/:id", brandHandler.Delete)
+			admin.POST("/players", playerHandler.Create)
+			admin.PATCH("/players/:id", playerHandler.Update)
+			admin.DELETE("/players/:id", playerHandler.Delete)
 		}
 	}
 

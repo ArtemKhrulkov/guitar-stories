@@ -128,3 +128,51 @@ func (h *AdminHandler) DeleteLink(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Link deleted successfully"})
 }
+
+type UpdateLinkRequest struct {
+	LinkID   string   `json:"link_id" binding:"required"`
+	URL      *string  `json:"url"`
+	PriceRUB *float64 `json:"price_rub"`
+	PriceUSD *float64 `json:"price_usd"`
+	InStock  *bool    `json:"in_stock"`
+}
+
+func (h *AdminHandler) UpdateLink(c *gin.Context) {
+	var req UpdateLinkRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	linkID, err := uuid.Parse(req.LinkID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid link_id format"})
+		return
+	}
+
+	link, err := h.purchaseLinkRepo.FindByID(linkID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Link not found"})
+		return
+	}
+
+	if req.URL != nil {
+		link.URL = *req.URL
+	}
+	if req.PriceRUB != nil {
+		link.PriceRUB = req.PriceRUB
+	}
+	if req.PriceUSD != nil {
+		link.PriceUSD = req.PriceUSD
+	}
+	if req.InStock != nil {
+		link.InStock = *req.InStock
+	}
+
+	if err := h.purchaseLinkRepo.Update(link); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update link"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"link": link})
+}

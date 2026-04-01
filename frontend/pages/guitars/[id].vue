@@ -18,7 +18,7 @@
       <template v-else-if="guitar">
         <v-breadcrumbs :items="breadcrumbs" class="px-0 mb-6" aria-label="Breadcrumb navigation">
           <template #divider>
-            <IconifyIcon icon="mdi-chevron-right" />
+            <IconifyIcon class="flex self-center" icon="mdi-chevron-right" />
           </template>
         </v-breadcrumbs>
 
@@ -90,7 +90,7 @@
               <v-window v-model="activeTab" class="tab-content">
                 <v-window-item value="specs">
                   <v-card variant="outlined" class="specs-card">
-                    <v-list class="bg-black" density="compact" aria-label="Guitar specifications">
+                    <v-list density="compact" aria-label="Guitar specifications">
                       <v-list-item
                         v-for="(value, key) in guitar.specifications"
                         :key="key"

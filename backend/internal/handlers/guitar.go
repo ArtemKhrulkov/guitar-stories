@@ -269,3 +269,27 @@ func (h *GuitarHandler) Create(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, gin.H{"guitar": createdGuitar})
 }
+
+func (h *GuitarHandler) Delete(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid guitar ID"})
+		return
+	}
+
+	guitar, err := h.repo.FindByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Guitar not found"})
+		return
+	}
+
+	if err := h.repo.Delete(id); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete guitar"})
+		return
+	}
+
+	_ = guitar
+
+	c.JSON(http.StatusOK, gin.H{"message": "Guitar deleted successfully"})
+}

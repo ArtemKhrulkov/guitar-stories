@@ -55,6 +55,14 @@ export interface GuitarCreate {
   specifications?: Specifications;
 }
 
+export interface LinkUpdate {
+  link_id: string;
+  url?: string;
+  price_rub?: number;
+  price_usd?: number;
+  in_stock?: boolean;
+}
+
 export interface Brand {
   id: string;
   name: string;
@@ -66,7 +74,9 @@ interface AdminLinksState {
   isLoading: Ref<boolean>;
   searchGuitars(query: string): Promise<void>;
   addLink(input: LinkInput): Promise<PurchaseLink>;
+  updateLink(id: string, data: LinkUpdate): Promise<PurchaseLink>;
   deleteLink(linkId: string): Promise<void>;
+  deleteGuitar(id: string): Promise<void>;
   updateGuitar(id: string, data: GuitarUpdate): Promise<Guitar>;
   createGuitar(data: GuitarCreate): Promise<Guitar>;
   getBrands(): Promise<Brand[]>;
@@ -118,6 +128,22 @@ export const useAdminLinks = (): AdminLinksState => {
     });
   };
 
+  const deleteGuitar = async (id: string): Promise<void> => {
+    await $fetch(`${API_BASE}/admin/guitars/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+  };
+
+  const updateLink = async (id: string, data: Omit<LinkUpdate, 'link_id'>): Promise<PurchaseLink> => {
+    const response = await $fetch<{ link: PurchaseLink }>(`${API_BASE}/admin/links`, {
+      method: 'PATCH',
+      credentials: 'include',
+      body: { link_id: id, ...data },
+    });
+    return response.link;
+  };
+
   const updateGuitar = async (id: string, data: GuitarUpdate): Promise<Guitar> => {
     const response = await $fetch<{ guitar: Guitar }>(`${API_BASE}/admin/guitars/${id}`, {
       method: 'PATCH',
@@ -148,7 +174,9 @@ export const useAdminLinks = (): AdminLinksState => {
     isLoading,
     searchGuitars,
     addLink,
+    updateLink,
     deleteLink,
+    deleteGuitar,
     updateGuitar,
     createGuitar,
     getBrands,
