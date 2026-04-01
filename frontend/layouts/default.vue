@@ -69,13 +69,17 @@
                   v-model="searchQuery"
                   placeholder="Search guitars, players..."
                   prepend-inner-icon="mdi-magnify"
+                  append-inner-icon="mdi-keyboard-return"
                   variant="solo"
                   hide-details
                   density="compact"
                   autofocus
                   class="search-input"
-                  @keyup.enter="performSearch"
+                  @keydown.enter="performSearch"
                 />
+                <p class="text-caption text-medium-emphasis mt-2 mb-0 text-center">
+                  Press <strong>Enter</strong> to search
+                </p>
               </v-card-text>
             </v-card>
           </v-menu>

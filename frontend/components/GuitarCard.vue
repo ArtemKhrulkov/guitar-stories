@@ -71,9 +71,16 @@
         View Details
         <IconifyIcon icon="mdi-arrow-right" size="18" class="ml-1" />
       </v-btn>
-    </v-card-actions>
-  </v-card>
-</template>
+      </v-card-actions>
+    </v-card>
+
+    <v-snackbar v-model="showWarning" color="warning" timeout="3000">
+      <div class="d-flex align-center">
+        <IconifyIcon icon="mdi-alert-circle" class="mr-2" />
+        Maximum {{ comparisonStore.MAX_GUITARS }} guitars for comparison. Remove one first.
+      </div>
+    </v-snackbar>
+  </template>
 
 <script setup lang="ts">
 import type { Guitar } from '~/types';
@@ -85,12 +92,16 @@ const props = defineProps<{
 
 const comparisonStore = useComparisonStore();
 const isSelected = computed(() => comparisonStore.isSelected(props.guitar.id));
+const showWarning = ref(false);
 
 const toggleCompare = () => {
   if (isSelected.value) {
     comparisonStore.removeGuitar(props.guitar.id);
   } else {
-    comparisonStore.addGuitar(props.guitar);
+    const added = comparisonStore.addGuitar(props.guitar);
+    if (!added) {
+      showWarning.value = true;
+    }
   }
 };
 

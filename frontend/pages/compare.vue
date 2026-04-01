@@ -1,31 +1,32 @@
 <template>
   <div class="compare-page">
-    <v-container fluid class="pa-6">
-      <div class="d-flex align-center justify-space-between mb-6">
-        <div>
-          <v-btn variant="text" start to="/guitars" class="mb-2">
-            <IconifyIcon icon="mdi-arrow-left" class="mr-1" />
-            Back to Catalog
-          </v-btn>
-          <h1 class="text-h4 font-weight-bold">
-            <IconifyIcon icon="mdi-compare-horizontal" color="primary" size="32px" class="mr-2" />
-            Compare Guitars
-          </h1>
-          <p class="text-body-2 text-medium-emphasis mt-1">
-            {{ comparisonStore.count }} of {{ comparisonStore.MAX_GUITARS }} guitars selected
-          </p>
+    <div class="compare-header">
+      <v-container>
+        <div class="d-flex align-center justify-space-between flex-wrap ga-4">
+          <div>
+            <h1 class="text-h4 font-weight-bold mb-1">
+              <IconifyIcon icon="mdi-compare-horizontal" color="primary" size="28px" class="mr-2" />
+              Compare Guitars
+            </h1>
+            <p class="text-body-2 text-medium-emphasis">
+              {{ comparisonStore.count }} of {{ comparisonStore.MAX_GUITARS }} guitars selected
+            </p>
+          </div>
+          <div class="d-flex align-center ga-2">
+            <v-btn variant="outlined" color="primary" to="/guitars">
+              <IconifyIcon icon="mdi-plus" class="mr-1" />
+              Add More
+            </v-btn>
+            <v-btn v-if="!comparisonStore.isEmpty" variant="text" color="error" @click="comparisonStore.clearAll()">
+              <IconifyIcon icon="mdi-delete" class="mr-1" />
+              Clear All
+            </v-btn>
+          </div>
         </div>
-        <div class="d-flex ga-2">
-          <v-btn variant="outlined" color="primary" to="/guitars">
-            <IconifyIcon icon="mdi-plus" class="mr-1" />
-            Add More
-          </v-btn>
-          <v-btn v-if="!comparisonStore.isEmpty" variant="text" @click="comparisonStore.clearAll()">
-            Clear All
-          </v-btn>
-        </div>
-      </div>
+      </v-container>
+    </div>
 
+    <v-container fluid class="pa-6 pt-4">
       <v-row v-if="comparisonStore.isEmpty">
         <v-col cols="12">
           <v-card class="text-center pa-12">
@@ -151,5 +152,11 @@ watch(
 <style scoped>
 .compare-page {
   min-height: calc(100vh - 200px);
+}
+
+.compare-header {
+  background: rgba(var(--v-theme-surface));
+  padding: 24px 0;
+  border-bottom: 1px solid rgba(var(--v-theme-primary), 0.1);
 }
 </style>

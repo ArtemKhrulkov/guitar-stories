@@ -20,7 +20,7 @@
       <!-- Breadcrumbs -->
       <v-breadcrumbs :items="breadcrumbs" class="px-0 mb-4" aria-label="Breadcrumb navigation">
         <template #divider>
-          <IconifyIcon icon="mdi-chevron-right" aria-hidden="true" />
+          <IconifyIcon class="flex self-center" icon="mdi-chevron-right" aria-hidden="true" />
         </template>
       </v-breadcrumbs>
 
