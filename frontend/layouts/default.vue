@@ -83,6 +83,82 @@
               </v-card-text>
             </v-card>
           </v-menu>
+
+          <v-menu v-model="userMenuOpen" location="bottom end" offset="8">
+            <template #activator="{ props }">
+              <v-btn
+                icon
+                variant="text"
+                v-bind="props"
+                aria-label="User menu"
+                class="action-btn"
+              >
+                <IconifyIcon
+                  :icon="isAuthenticated ? 'mdi-account-circle' : 'mdi-account'"
+                  size="22"
+                />
+              </v-btn>
+            </template>
+
+            <v-card min-width="220" class="user-menu-card" elevation="8">
+              <template v-if="isAuthenticated && user">
+                <div class="pa-3 pb-2">
+                  <div class="text-body-2 font-weight-medium">{{ user.email }}</div>
+                  <div class="text-caption text-medium-emphasis text-capitalize">
+                    {{ user.role }} Account
+                  </div>
+                </div>
+                <v-divider />
+              </template>
+
+              <v-list density="compact" nav>
+                <template v-if="!isAuthenticated">
+                  <v-list-item
+                    prepend-icon="mdi-login"
+                    title="Login"
+                    to="/login"
+                    @click="userMenuOpen = false"
+                  />
+                  <v-list-item
+                    prepend-icon="mdi-account-plus"
+                    title="Register"
+                    to="/register"
+                    @click="userMenuOpen = false"
+                  />
+                </template>
+
+                <template v-else>
+                  <v-list-item
+                    prepend-icon="mdi-account"
+                    title="My Profile"
+                    to="/profile"
+                    @click="userMenuOpen = false"
+                  />
+                  <v-list-item
+                    prepend-icon="mdi-heart"
+                    title="My Wishlist"
+                    to="/profile?tab=wishlist"
+                    @click="userMenuOpen = false"
+                  >
+                    <template #append>
+                      <v-badge
+                        v-if="wishlistCount > 0"
+                        :content="wishlistCount"
+                        color="error"
+                        inline
+                      />
+                    </template>
+                  </v-list-item>
+                  <v-divider class="my-1" />
+                  <v-list-item
+                    prepend-icon="mdi-logout"
+                    title="Logout"
+                    @click="handleLogout"
+                  />
+                </template>
+              </v-list>
+            </v-card>
+          </v-menu>
         </div>
       </v-container>
     </v-app-bar>
@@ -157,10 +233,16 @@
 const route = useRoute();
 const router = useRouter();
 
+const { user, isAuthenticated, checkAuth, logout } = useAuth();
+const wishlistStore = useWishlist();
+
 const drawer = ref(false);
 const searchQuery = ref('');
 const searchMenuOpen = ref(false);
+const userMenuOpen = ref(false);
 const scrolled = ref(false);
+
+const wishlistCount = computed(() => wishlistStore.guitarIds.value.length);
 
 const performSearch = () => {
   if (!searchQuery.value.trim()) return;
@@ -169,9 +251,18 @@ const performSearch = () => {
   searchQuery.value = '';
 };
 
+const handleLogout = async () => {
+  await logout();
+  userMenuOpen.value = false;
+  await wishlistStore.fetchWishlist();
+};
+
 const currentYear = new Date().getFullYear();
 
-onMounted(() => {
+onMounted(async () => {
+  await checkAuth();
+  await wishlistStore.fetchWishlist();
+
   window.addEventListener('scroll', () => {
     scrolled.value = window.scrollY > 20;
   });
@@ -257,6 +348,14 @@ onUnmounted(() => {
 
 .search-card {
   border-radius: 12px;
+}
+
+.user-menu-card {
+  border-radius: 12px;
+}
+
+.user-menu-card :deep(.v-list-item) {
+  min-height: 40px;
 }
 
 .search-input :deep(.v-field) {
