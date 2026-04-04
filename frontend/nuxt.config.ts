@@ -38,7 +38,7 @@ export default defineNuxtConfig({
     },
   },
 
-  css: ['vuetify/lib/styles/main.sass', '~/assets/css/main.css'],
+  css: ['vuetify/lib/styles/main.sass', '~/assets/css/main.css', '~/assets/css/utilities.css'],
 
   runtimeConfig: {
     public: {
