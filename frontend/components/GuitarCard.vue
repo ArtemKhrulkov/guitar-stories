@@ -23,32 +23,36 @@
       </div>
 
       <div class="image-overlay">
-        <v-chip :color="getTypeColor(guitar.guitar_type)" size="small" class="type-badge">
-          <IconifyIcon :icon="getTypeIcon(guitar.guitar_type)" size="14" class="mr-1" />
-          {{ guitar.guitar_type }}
-        </v-chip>
+        <div class="flex">
+          <v-chip :color="getTypeColor(guitar.guitar_type)" size="small" class="type-badge">
+            <IconifyIcon :icon="getTypeIcon(guitar.guitar_type)" size="14" class="mr-1" />
+            {{ guitar.guitar_type }}
+          </v-chip>
+        </div>
 
-        <v-btn
-          icon
-          size="small"
-          :color="isWishlisted ? 'error' : 'white'"
-          class="wishlist-btn"
-          :aria-label="isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'"
-          @click.prevent="toggleWishlist"
-        >
-          <IconifyIcon :icon="isWishlisted ? 'mdi-heart' : 'mdi-heart-outline'" size="18" />
-        </v-btn>
+        <div class="flex items-center">
+          <v-btn
+            icon
+            size="small"
+            :color="isWishlisted ? 'error' : 'white'"
+            class="wishlist-btn mr-2"
+            :aria-label="isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'"
+            @click.prevent="toggleWishlist"
+          >
+            <IconifyIcon :icon="isWishlisted ? 'mdi-heart' : 'mdi-heart-outline'" size="18" />
+          </v-btn>
 
-        <v-btn
-          icon
-          size="small"
-          :color="isSelected ? 'success' : 'white'"
-          class="compare-btn"
-          :aria-label="isSelected ? 'Remove from compare' : 'Add to compare'"
-          @click.prevent="toggleCompare"
-        >
-          <IconifyIcon :icon="isSelected ? 'mdi-check' : 'mdi-plus'" size="18" />
-        </v-btn>
+          <v-btn
+            icon
+            size="small"
+            :color="isSelected ? 'success' : 'white'"
+            class="compare-btn"
+            :aria-label="isSelected ? 'Remove from compare' : 'Add to compare'"
+            @click.prevent="toggleCompare"
+          >
+            <IconifyIcon :icon="isSelected ? 'mdi-check' : 'mdi-plus'" size="18" />
+          </v-btn>
+        </div>
       </div>
     </div>
 
@@ -237,12 +241,14 @@ const extractPriceRange = (priceRange: string) => {
   text-transform: capitalize;
 }
 
-.compare-btn {
+.compare-btn,
+.wishlist-btn {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(8px);
 }
 
-.compare-btn:hover {
+.compare-btn:hover,
+.wishlist-btn:hover {
   transform: scale(1.1);
 }
 
