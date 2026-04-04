@@ -169,7 +169,7 @@ definePageMeta({
   layout: 'admin',
 });
 
-const { logout } = useAdminAuth();
+const { logout } = useAuth();
 const config = useRuntimeConfig();
 const API_BASE = config.public.apiUrl;
 

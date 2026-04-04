@@ -22,20 +22,28 @@ func Setup(db *gorm.DB, cfg *config.Config, scraperService *scraper.Service) *gi
 		AllowCredentials: true,
 	}))
 
+	// Repositories
 	brandRepo := repository.NewBrandRepository(db)
 	guitarRepo := repository.NewGuitarRepository(db)
 	playerRepo := repository.NewPlayerRepository(db)
 	purchaseLinkRepo := repository.NewPurchaseLinkRepository(db)
+	userRepo := repository.NewUserRepository(db)
+	wishlistRepo := repository.NewWishlistRepository(db)
 
+	// Handlers
 	brandHandler := handlers.NewBrandHandler(brandRepo)
 	guitarHandler := handlers.NewGuitarHandler(guitarRepo)
 	playerHandler := handlers.NewPlayerHandler(playerRepo)
-	authHandler := handlers.NewAuthHandler(cfg)
+	authHandler := handlers.NewAuthHandler(cfg, userRepo, wishlistRepo)
 	adminHandler := handlers.NewAdminHandler(purchaseLinkRepo, guitarRepo)
 	scraperHandler := handlers.NewScraperHandler(scraperService)
 
+	// Middleware
+	authMiddleware := middleware.NewAuthMiddleware(userRepo)
+
 	api := r.Group("/api")
 	{
+		// Public routes
 		api.GET("/brands", brandHandler.GetAll)
 		api.GET("/brands/:id", brandHandler.GetByID)
 
@@ -45,12 +53,31 @@ func Setup(db *gorm.DB, cfg *config.Config, scraperService *scraper.Service) *gi
 		api.GET("/players", playerHandler.GetAll)
 		api.GET("/players/:id", playerHandler.GetByID)
 
-		api.GET("/auth/check", authHandler.Check)
+		// Auth routes (public)
+		api.POST("/auth/register", authHandler.Register)
+		api.POST("/auth/verify-email", authHandler.VerifyEmail)
+		api.POST("/auth/request-password-reset", authHandler.RequestPasswordReset)
+		api.POST("/auth/reset-password", authHandler.ResetPassword)
 		api.POST("/auth/login", authHandler.Login)
 		api.POST("/auth/logout", authHandler.Logout)
+		api.GET("/auth/check", authHandler.Check)
 
+		// User routes (requires auth)
+		user := api.Group("")
+		user.Use(authMiddleware.RequireAuth())
+		{
+			user.GET("/auth/me", authHandler.GetProfile)
+			user.PUT("/auth/profile", authHandler.UpdateProfile)
+
+			// Wishlist routes
+			user.GET("/wishlist", authHandler.GetWishlist)
+			user.POST("/wishlist", authHandler.AddToWishlist)
+			user.DELETE("/wishlist/:guitar_id", authHandler.RemoveFromWishlist)
+		}
+
+		// Admin routes (Basic Auth + cookie-based)
 		admin := api.Group("/admin")
-		admin.Use(middleware.BasicAuth(cfg))
+		admin.Use(authMiddleware.RequireAdmin())
 		{
 			admin.POST("/scrape/:guitar_id", scraperHandler.ScrapeGuitar)
 			admin.POST("/scrape/all", scraperHandler.ScrapeAll)

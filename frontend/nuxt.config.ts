@@ -1,7 +1,6 @@
 import vuetify, { transformAssetUrls } from 'vite-plugin-vuetify';
 
 const modules = [
-  '@nuxtjs/tailwindcss',
   '@pinia/nuxt',
   '@nuxt/image',
   (_options, nuxt) => {

@@ -31,6 +31,17 @@
         <v-btn
           icon
           size="small"
+          :color="isWishlisted ? 'error' : 'white'"
+          class="wishlist-btn"
+          :aria-label="isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'"
+          @click.prevent="toggleWishlist"
+        >
+          <IconifyIcon :icon="isWishlisted ? 'mdi-heart' : 'mdi-heart-outline'" size="18" />
+        </v-btn>
+
+        <v-btn
+          icon
+          size="small"
           :color="isSelected ? 'success' : 'white'"
           class="compare-btn"
           :aria-label="isSelected ? 'Remove from compare' : 'Add to compare'"
@@ -91,8 +102,12 @@ const props = defineProps<{
 }>();
 
 const comparisonStore = useComparisonStore();
+const wishlistStore = useWishlist();
+
 const isSelected = computed(() => comparisonStore.isSelected(props.guitar.id));
+const isWishlisted = computed(() => wishlistStore.guitarIds.value.includes(props.guitar.id));
 const showWarning = ref(false);
+const wishlistLoading = ref(false);
 
 const toggleCompare = () => {
   if (isSelected.value) {
@@ -102,6 +117,21 @@ const toggleCompare = () => {
     if (!added) {
       showWarning.value = true;
     }
+  }
+};
+
+const toggleWishlist = async () => {
+  wishlistLoading.value = true;
+  try {
+    if (isWishlisted.value) {
+      await wishlistStore.removeFromWishlist(props.guitar.id);
+    } else {
+      await wishlistStore.addToWishlist(props.guitar.id);
+    }
+  } catch (error) {
+    console.error('Failed to toggle wishlist:', error);
+  } finally {
+    wishlistLoading.value = false;
   }
 };
 
